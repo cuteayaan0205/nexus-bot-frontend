@@ -520,8 +520,8 @@ export default function CryptoBotApp() {
       for (const sym of PAIRS) {
         const a = analyses[sym];
         if (!a) continue;
-        if (a.signal === "BUY" && +a.confidence > 60) await executeTrade(sym, "BUY");
-        if (a.signal === "SELL" && +a.confidence > 60) await executeTrade(sym, "SELL");
+        if (a.signal === "BUY" && +a.confidence > 30) await executeTrade(sym, "BUY");
+        if (a.signal === "SELL" && +a.confidence > 30) await executeTrade(sym, "SELL");
       }
     }
   }, [loadMarketData, autoTrade, analyses, executeTrade]);
