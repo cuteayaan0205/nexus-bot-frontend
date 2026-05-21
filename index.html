@@ -72,6 +72,21 @@ select option{background:#0a1520;}
 .m-cancel{font-size:11px;text-align:center;color:var(--muted);cursor:pointer;padding:4px;}
 .m-cancel:hover{color:var(--text);}
 .m-status{font-size:11px;font-family:'Share Tech Mono',monospace;text-align:center;min-height:16px;margin-top:6px;}
+/* User Login Screen */
+#login-screen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;justify-content:center;align-items:center;}
+#login-screen.hidden{display:none;}
+.login-box{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:40px;width:360px;text-align:center;position:relative;}
+.login-box::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.login-title{font-size:24px;font-weight:700;letter-spacing:3px;background:linear-gradient(90deg,var(--accent),#00b8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px;}
+.login-sub{font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:30px;}
+.login-input{font-size:15px;padding:12px 16px;text-align:center;letter-spacing:1px;margin-bottom:16px;border-width:2px;}
+.login-input:focus{border-color:var(--accent);box-shadow:0 0 12px rgba(0,255,224,0.2);}
+.login-btn{width:100%;padding:12px;font-size:14px;font-weight:700;letter-spacing:2px;cursor:pointer;border:2px solid var(--accent);background:rgba(0,255,224,0.1);color:var(--accent);border-radius:4px;font-family:'Rajdhani',sans-serif;text-transform:uppercase;transition:all 0.2s;margin-bottom:10px;}
+.login-btn:hover{background:rgba(0,255,224,0.2);box-shadow:0 0 20px rgba(0,255,224,0.3);}
+.login-users{margin-top:20px;text-align:left;}
+.login-user-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#060e16;border-radius:3px;margin-bottom:6px;cursor:pointer;border:1px solid var(--border);transition:all 0.2s;}
+.login-user-item:hover{border-color:var(--accent);}
+
 /* Paper trading badge */
 .paper-badge{background:rgba(255,225,53,0.15);border:1px solid rgba(255,225,53,0.4);color:var(--accent3);font-size:9px;padding:2px 8px;border-radius:2px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
 /* Portfolio */
@@ -79,6 +94,24 @@ select option{background:#0a1520;}
 </style>
 </head>
 <body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-title">NEXUS BOT</div>
+    <div class="login-sub">AI CRYPTO TRADER — PAPER TRADING</div>
+    <div style="background:rgba(0,255,224,0.05);border:1px solid rgba(0,255,224,0.15);border-radius:4px;padding:12px;margin-bottom:24px;font-size:11px;color:var(--text);line-height:1.7;">
+      Each user gets their own<br><strong style="color:var(--accent);">$10,000 virtual balance</strong><br>to test AI trading strategies
+    </div>
+    <label style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;text-align:left;">Enter Your Name</label>
+    <input type="text" class="login-input" id="login-name" placeholder="e.g. Afzal, Rahul, Sara..." maxlength="20"/>
+    <button class="login-btn" onclick="loginUser()">START TRADING →</button>
+    <div id="existing-users-section" style="display:none;">
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">— or continue as —</div>
+      <div class="login-users" id="existing-users-list"></div>
+    </div>
+  </div>
+</div>
 
 <!-- HEADER -->
 <div style="border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,21,32,0.98);position:sticky;top:0;z-index:100;">
@@ -89,6 +122,7 @@ select option{background:#0a1520;}
     </div>
     <div style="width:1px;height:28px;background:var(--border);"></div>
     <span class="paper-badge">📄 PAPER TRADING</span>
+    <span id="user-display" style="font-size:10px;color:var(--accent);font-family:'Share Tech Mono',monospace;"></span>
     <div style="display:flex;gap:5px;">
       <button class="btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">DASHBOARD</button>
       <button class="btn" id="tab-portfolio-btn" onclick="switchTab('portfolio')">PORTFOLIO</button>
@@ -145,7 +179,7 @@ select option{background:#0a1520;}
           <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Watchlist</span>
           <select id="interval-select" onchange="onIntervalChange()" style="width:auto;font-size:10px;padding:2px 6px;">
             <option value="1m">1m</option><option value="3m">3m</option><option value="5m">5m</option>
-            <option value="15m" selected>15m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
+            <option value="1m" selected>1m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
           </select>
         </div>
         <div id="pair-list">
@@ -184,6 +218,7 @@ select option{background:#0a1520;}
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;">
           <button class="btn" onclick="resetPortfolio()" style="font-size:10px;">Reset Portfolio</button>
+          <button class="btn" onclick="logoutUser()" style="font-size:10px;border-color:var(--muted);color:var(--muted);">Switch User</button>
         </div>
       </div>
 
@@ -223,29 +258,107 @@ const PAIRS=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
 const LABELS={BTCUSDT:"BTC/USDT",ETHUSDT:"ETH/USDT",BNBUSDT:"BNB/USDT",SOLUSDT:"SOL/USDT",XRPUSDT:"XRP/USDT"};
 const QUICK={BTCUSDT:["0.001","0.005","0.01"],ETHUSDT:["0.01","0.05","0.1"],BNBUSDT:["0.1","0.5","1"],SOLUSDT:["1","5","10"],XRPUSDT:["10","50","100"]};
 
+// Current user
+let currentUser = null;
+
 // Portfolio state
 let portfolio={
   balance:10000,
   startBalance:10000,
-  positions:{},  // symbol -> {side, qty, entryPrice, time}
+  positions:{},
   trades:[],
   wins:0,
   losses:0,
 };
 
-let S={tickers:{},candles:{},analyses:{},activePair:"BTCUSDT",botRunning:false,autoTrade:false,interval:"15m",logs:[],botInterval:null,modalSym:null};
+let S={tickers:{},candles:{},analyses:{},activePair:"BTCUSDT",botRunning:false,autoTrade:false,interval:"1m",logs:[],botInterval:null,modalSym:null};
 
 window.onload=()=>{
-  loadPortfolio();
-  loadData();
-  setInterval(updatePnL, 5000);
+  showLoginScreen();
 };
 
-// ── Portfolio persistence ──────────────────────────────────────────────────
-function savePortfolio(){localStorage.setItem("nx_portfolio",JSON.stringify(portfolio));}
-function loadPortfolio(){
-  try{const p=JSON.parse(localStorage.getItem("nx_portfolio")||"null");if(p)portfolio=p;}catch(e){}
+// ── Login / User Management ────────────────────────────────────────────────
+function showLoginScreen(){
+  document.getElementById("login-screen").classList.remove("hidden");
+  loadExistingUsers();
+  document.getElementById("login-name").addEventListener("keypress",function(e){
+    if(e.key==="Enter")loginUser();
+  });
+}
+
+function getAllUsers(){
+  try{return JSON.parse(localStorage.getItem("nx_users")||"{}");}catch(e){return {};}
+}
+
+function loadExistingUsers(){
+  const users=getAllUsers();
+  const keys=Object.keys(users);
+  const section=document.getElementById("existing-users-section");
+  const list=document.getElementById("existing-users-list");
+  if(keys.length===0){section.style.display="none";return;}
+  section.style.display="block";
+  list.innerHTML=keys.map(name=>{
+    const u=users[name];
+    const pnl=u.balance-u.startBalance;
+    return`<div class="login-user-item" onclick="loginAs('${name}')">
+      <div>
+        <div style="font-size:13px;font-weight:600;">${name}</div>
+        <div style="font-size:10px;color:var(--muted);">$${u.balance.toFixed(2)} · ${u.trades.length} trades</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:12px;color:${pnl>=0?"var(--bull)":"var(--bear)"};">${pnl>=0?"+":""}$${pnl.toFixed(2)}</div>
+        <div onclick="event.stopPropagation();deleteUser('${name}')" style="font-size:9px;color:var(--bear);margin-top:2px;cursor:pointer;">✕ delete</div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function loginUser(){
+  const name=document.getElementById("login-name").value.trim();
+  if(!name){document.getElementById("login-name").style.borderColor="var(--bear)";return;}
+  const users=getAllUsers();
+  if(!users[name]){
+    users[name]={balance:10000,startBalance:10000,positions:{},trades:[],wins:0,losses:0};
+    localStorage.setItem("nx_users",JSON.stringify(users));
+  }
+  loginAs(name);
+}
+
+function loginAs(name){
+  currentUser=name;
+  const users=getAllUsers();
+  portfolio=users[name];
+  document.getElementById("login-screen").classList.add("hidden");
+  document.getElementById("user-display").textContent="👤 "+name;
   updatePortfolioUI();
+  loadData();
+  setInterval(updatePnL,5000);
+  addLog(`Welcome back ${name}! Balance: $${portfolio.balance.toFixed(2)}`,"success");
+}
+
+function deleteUser(name){
+  if(!confirm(`Delete user "${name}"?`))return;
+  const users=getAllUsers();
+  delete users[name];
+  localStorage.setItem("nx_users",JSON.stringify(users));
+  loadExistingUsers();
+}
+
+function logoutUser(){
+  if(S.botRunning)toggleBot();
+  currentUser=null;
+  S.logs=[];
+  document.getElementById("login-screen").classList.remove("hidden");
+  document.getElementById("login-name").value="";
+  loadExistingUsers();
+}
+
+// ── Portfolio persistence ──────────────────────────────────────────────────
+function savePortfolio(){
+  if(!currentUser)return;
+  const users=getAllUsers();
+  users[currentUser]=portfolio;
+  localStorage.setItem("nx_users",JSON.stringify(users));
 }
 function resetPortfolio(){
   if(!confirm("Reset portfolio to $10,000?"))return;
@@ -404,10 +517,19 @@ async function loadData(){
   }catch(e){addLog("Price error: "+e.message,"error");}
   for(const sym of PAIRS){
     try{
-      const r2=await fetch(`${BACKEND}/klines/${sym}?interval=${S.interval}&limit=100`);
+      const r2=await fetch(`${BACKEND}/klines/${sym}?interval=${S.interval}&limit=100`,{signal:AbortSignal.timeout(15000)});
       if(!r2.ok)throw new Error(r2.status);
       const k=await r2.json();S.candles[sym]=k;S.analyses[sym]=computeAI(k);
-    }catch(e){addLog("Klines error "+sym,"warn");}
+    }catch(e){
+      addLog("Klines error "+sym+" — backend waking up...","warn");
+      // Retry once after 5 seconds
+      setTimeout(async()=>{
+        try{
+          const r3=await fetch(`${BACKEND}/klines/${sym}?interval=${S.interval}&limit=100`);
+          if(r3.ok){const k=await r3.json();S.candles[sym]=k;S.analyses[sym]=computeAI(k);renderPairList();renderDetail();}
+        }catch(e2){}
+      },5000);
+    }
   }
   renderPairList();renderDetail();addLog(`✓ Refreshed [${S.interval}]`,"info");
 }
@@ -514,13 +636,12 @@ function autoTrade(sym,side){
   const qtyN=parseFloat(qty);
   const existingPos=portfolio.positions[sym];
 
-  // If we have an open position and signal is opposite — CLOSE it (take profit/loss)
+  // If we have an open BUY position and SELL signal fires — CLOSE it
   if(existingPos){
     if(existingPos.side==="BUY"&&side==="SELL"){
       closePosition(sym);
-      addLog(`🤖 AUTO CLOSED ${LABELS[sym]} position`,"success");
+      addLog(`🤖 AUTO SELL — closed ${LABELS[sym]} position`,"success");
     }
-    // Never open two positions in same direction
     return;
   }
 
@@ -550,13 +671,13 @@ function toggleBot(){
         for(const sym of PAIRS){
           const a=S.analyses[sym];
           if(!a||a.signal==="LOADING")continue;
-          if(a.signal==="BUY"&&+a.confidence>30)autoTrade(sym,"BUY");
-          if(a.signal==="SELL"&&+a.confidence>30)autoTrade(sym,"SELL");
+          if(a.signal==="BUY"&&+a.confidence>20)autoTrade(sym,"BUY");
+          if(a.signal==="SELL"&&+a.confidence>20)autoTrade(sym,"SELL");
         }
       }
     };
     runCycle();
-    S.botInterval=setInterval(runCycle,30000);
+    S.botInterval=setInterval(runCycle,30000); // refreshes every 30 seconds
   }else{
     clearInterval(S.botInterval);btn.textContent="START BOT";btn.classList.remove("danger");
     badge.textContent="○ IDLE";badge.style.color="var(--muted)";badge.style.borderColor="var(--muted)";badge.style.animation="none";
