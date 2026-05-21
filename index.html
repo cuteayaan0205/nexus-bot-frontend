@@ -1,839 +1,605 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NEXUS BOT — AI Crypto Trader</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#050a0e;--panel:#0a1520;--border:#0e2a3a;--accent:#00ffe0;--accent3:#ffe135;--bull:#00e896;--bear:#ff3d5a;--text:#c8dde8;--muted:#3a6070;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;}
+.mono{font-family:'Share Tech Mono',monospace;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes ticker{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+@keyframes glow{0%,100%{box-shadow:0 0 6px rgba(0,255,224,0.15)}50%{box-shadow:0 0 24px rgba(0,255,224,0.5)}}
+@keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes modalIn{from{opacity:0;transform:scale(0.92)}to{opacity:1;transform:scale(1)}}
+@keyframes countUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;display:inline-block;vertical-align:middle;}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:3px;position:relative;overflow:hidden;}
+.panel::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.4;}
+.btn{font-family:'Rajdhani',sans-serif;font-weight:700;font-size:11px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border:1px solid var(--accent);background:transparent;color:var(--accent);padding:6px 14px;border-radius:2px;transition:all 0.2s;}
+.btn:hover{background:rgba(0,255,224,0.08);}
+.btn.danger{border-color:var(--bear);color:var(--bear);}
+.btn.active{background:rgba(0,255,224,0.15);}
+input,select{background:#060e16;border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:6px 10px;border-radius:2px;outline:none;width:100%;}
+input:focus,select:focus{border-color:var(--accent);}
+select option{background:#0a1520;}
+.tab{display:none;}.tab.active{display:block;}
+.pair-card{padding:12px 14px;cursor:pointer;transition:all 0.2s;border:1px solid var(--border);border-radius:3px;background:var(--panel);margin-bottom:7px;}
+.pair-card.selected{border-color:var(--accent);box-shadow:0 0 16px rgba(0,255,224,0.2);}
+.pair-card:hover{border-color:rgba(0,255,224,0.4);}
+.signal{font-size:11px;font-weight:700;padding:3px 10px;border-radius:2px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
+.signal.buy{color:var(--bull);background:rgba(0,232,150,0.1);border:1px solid rgba(0,232,150,0.3);}
+.signal.sell{color:var(--bear);background:rgba(255,61,90,0.1);border:1px solid rgba(255,61,90,0.3);}
+.signal.hold{color:var(--accent3);background:rgba(255,225,53,0.1);border:1px solid rgba(255,225,53,0.3);}
+.signal.loading{color:var(--muted);background:rgba(58,96,112,0.1);border:1px solid rgba(58,96,112,0.3);}
+.conf-bar-wrap{display:flex;align-items:center;gap:8px;margin-top:5px;}
+.conf-bar-bg{flex:1;height:3px;background:#0e2a3a;border-radius:2px;overflow:hidden;}
+.conf-bar-fill{height:100%;border-radius:2px;transition:width 0.6s ease;}
+.breakdown-item{display:flex;justify-content:space-between;align-items:center;padding:4px 8px;background:#060e16;border-radius:2px;margin-bottom:3px;}
+.trade-item{display:flex;gap:8px;align-items:center;padding:5px 10px;background:#060e16;border-radius:2px;margin-bottom:3px;animation:fade 0.3s ease;}
+.log-item{font-size:11px;padding:3px 8px;border-radius:2px;background:#060e16;margin-bottom:3px;font-family:'Share Tech Mono',monospace;}
+.toggle{width:40px;height:22px;border-radius:11px;background:var(--border);position:relative;cursor:pointer;transition:background 0.3s;flex-shrink:0;}
+.toggle.on{background:var(--bull);}
+.toggle-knob{position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;transition:left 0.3s;}
+.toggle.on .toggle-knob{left:20px;}
+#ticker-bar{overflow:hidden;background:#060e16;border-bottom:1px solid var(--border);padding:5px 0;min-height:26px;}
+.ticker-inner{display:inline-block;white-space:nowrap;animation:ticker 40s linear infinite;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);padding:0 20px;}
+.stat-box{background:#060e16;padding:7px 10px;border-radius:2px;}
+.stat-label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.stat-val{font-size:13px;margin-top:2px;font-family:'Share Tech Mono',monospace;}
+/* Modal */
+#overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:999;justify-content:center;align-items:center;}
+#overlay.open{display:flex;}
+#modal{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:26px;width:340px;animation:modalIn 0.22s ease;position:relative;}
+#modal::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.m-title{font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;}
+.m-price{font-size:11px;color:var(--muted);margin-bottom:14px;font-family:'Share Tech Mono',monospace;}
+.m-label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px;}
+.m-input{font-size:18px;padding:10px 14px;text-align:center;letter-spacing:2px;border-width:2px;margin-bottom:8px;}
+.m-input:focus{border-color:var(--accent);}
+.q-btns{display:flex;gap:5px;margin-bottom:16px;flex-wrap:wrap;}
+.q-btn{font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:2px;transition:all 0.15s;}
+.q-btn:hover{border-color:var(--accent);color:var(--accent);}
+.m-actions{display:flex;gap:8px;margin-bottom:10px;}
+.m-buy{flex:1;padding:10px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--bull);background:rgba(0,232,150,0.08);color:var(--bull);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;text-transform:uppercase;transition:all 0.2s;}
+.m-buy:hover{background:rgba(0,232,150,0.2);}
+.m-sell{flex:1;padding:10px;font-size:12px;font-weight:700;cursor:pointer;border:2px solid var(--bear);background:rgba(255,61,90,0.08);color:var(--bear);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;text-transform:uppercase;transition:all 0.2s;}
+.m-sell:hover{background:rgba(255,61,90,0.2);}
+.m-cancel{font-size:11px;text-align:center;color:var(--muted);cursor:pointer;padding:4px;}
+.m-cancel:hover{color:var(--text);}
+.m-status{font-size:11px;font-family:'Share Tech Mono',monospace;text-align:center;min-height:16px;margin-top:6px;}
+/* Paper trading badge */
+.paper-badge{background:rgba(255,225,53,0.15);border:1px solid rgba(255,225,53,0.4);color:var(--accent3);font-size:9px;padding:2px 8px;border-radius:2px;font-family:'Share Tech Mono',monospace;letter-spacing:1px;}
+/* Portfolio */
+.portfolio-card{background:linear-gradient(135deg,#0a1520,#0d1e2e);border:1px solid var(--border);border-radius:4px;padding:14px 18px;margin-bottom:12px;}
+</style>
+</head>
+<body>
 
-// ── Fonts ──────────────────────────────────────────────────────────────────
-const FONT_LINK = document.createElement("link");
-FONT_LINK.rel = "stylesheet";
-FONT_LINK.href =
-  "https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap";
-document.head.appendChild(FONT_LINK);
+<!-- HEADER -->
+<div style="border-bottom:1px solid var(--border);padding:10px 18px;display:flex;align-items:center;justify-content:space-between;background:rgba(10,21,32,0.98);position:sticky;top:0;z-index:100;">
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div>
+      <div style="font-size:18px;font-weight:700;letter-spacing:3px;background:linear-gradient(90deg,var(--accent),#00b8ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">NEXUS BOT</div>
+      <div style="font-size:8px;letter-spacing:2px;color:var(--muted);margin-top:-2px;">AI CRYPTO TRADER</div>
+    </div>
+    <div style="width:1px;height:28px;background:var(--border);"></div>
+    <span class="paper-badge">📄 PAPER TRADING</span>
+    <div style="display:flex;gap:5px;">
+      <button class="btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">DASHBOARD</button>
+      <button class="btn" id="tab-portfolio-btn" onclick="switchTab('portfolio')">PORTFOLIO</button>
+      <button class="btn" id="tab-logs-btn" onclick="switchTab('logs')">LOGS</button>
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <div class="mono" style="font-size:9px;padding:3px 8px;border:1px solid var(--bull);border-radius:2px;color:var(--bull);">● BACKEND LIVE</div>
+    <div class="mono" id="bot-badge" style="font-size:9px;padding:3px 8px;border:1px solid var(--muted);border-radius:2px;color:var(--muted);">○ IDLE</div>
+    <div style="display:flex;align-items:center;gap:6px;">
+      <span style="font-size:9px;color:var(--muted);letter-spacing:1px;">AUTO</span>
+      <div class="toggle" id="auto-toggle" onclick="toggleAuto()" title="Enable Auto-Trading"><div class="toggle-knob"></div></div>
+    </div>
+    <button class="btn" id="start-btn" onclick="toggleBot()">START BOT</button>
+  </div>
+</div>
 
-// ── Global Styles ──────────────────────────────────────────────────────────
-const STYLE = document.createElement("style");
-STYLE.textContent = `
-  :root {
-    --bg: #050a0e;
-    --panel: #0a1520;
-    --border: #0e2a3a;
-    --accent: #00ffe0;
-    --accent2: #ff6b35;
-    --accent3: #ffe135;
-    --bull: #00e896;
-    --bear: #ff3d5a;
-    --text: #c8dde8;
-    --muted: #3a6070;
-    --glow: 0 0 20px rgba(0,255,224,0.25);
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: var(--bg); color: var(--text); font-family: 'Rajdhani', sans-serif; }
-  ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+<!-- TICKER -->
+<div id="ticker-bar">
+  <div style="display:flex;justify-content:center;align-items:center;gap:8px;">
+    <div class="spinner"></div>
+    <span class="mono" style="font-size:10px;color:var(--muted);">Loading live prices...</span>
+  </div>
+</div>
 
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-  @keyframes scanline { 0%{transform:translateY(-100%)} 100%{transform:translateY(100vh)} }
-  @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  @keyframes glowBeat { 0%,100%{box-shadow:0 0 6px rgba(0,255,224,0.2)} 50%{box-shadow:0 0 22px rgba(0,255,224,0.55)} }
-  @keyframes ticker { 0%{transform:translateX(0)} 100%{transform:translateX(-50%)} }
+<!-- TRADE MODAL -->
+<div id="overlay">
+  <div id="modal">
+    <div class="m-title" id="m-title">Trade</div>
+    <div class="m-price" id="m-price"></div>
+    <div style="background:rgba(255,225,53,0.08);border:1px solid rgba(255,225,53,0.3);border-radius:3px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--accent3);">
+      📄 Paper Trade — No real money used
+    </div>
+    <label class="m-label">Enter Quantity (units)</label>
+    <input type="number" class="m-input" id="m-qty" placeholder="0.00" step="any" min="0"/>
+    <div class="q-btns" id="q-btns"></div>
+    <div class="m-actions">
+      <button class="m-buy" onclick="doTrade('BUY')">▲ BUY</button>
+      <button class="m-sell" onclick="doTrade('SELL')">▼ SELL</button>
+    </div>
+    <div class="m-cancel" onclick="closeModal()">✕ Cancel</div>
+    <div class="m-status" id="m-status"></div>
+  </div>
+</div>
 
-  .fade-in { animation: fadeSlide 0.4s ease forwards; }
-  .glow-beat { animation: glowBeat 2s ease infinite; }
-  .mono { font-family: 'Share Tech Mono', monospace; }
+<!-- MAIN -->
+<div style="padding:14px 18px;max-width:1400px;margin:0 auto;">
 
-  .btn {
-    font-family: 'Rajdhani', sans-serif; font-weight: 700; font-size: 13px;
-    letter-spacing: 1.5px; text-transform: uppercase; cursor: pointer;
-    border: 1px solid var(--accent); background: transparent; color: var(--accent);
-    padding: 8px 20px; border-radius: 2px;
-    transition: all 0.2s; position: relative; overflow: hidden;
-  }
-  .btn:hover { background: rgba(0,255,224,0.08); box-shadow: var(--glow); }
-  .btn.danger { border-color: var(--bear); color: var(--bear); }
-  .btn.danger:hover { background: rgba(255,61,90,0.08); box-shadow: 0 0 20px rgba(255,61,90,0.3); }
-  .btn.active { background: rgba(0,255,224,0.15); box-shadow: var(--glow); }
-  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  <!-- DASHBOARD -->
+  <div id="tab-dashboard" class="tab active">
+    <div style="display:grid;grid-template-columns:255px 1fr;gap:14px;align-items:start;">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Watchlist</span>
+          <select id="interval-select" onchange="onIntervalChange()" style="width:auto;font-size:10px;padding:2px 6px;">
+            <option value="1m">1m</option><option value="3m">3m</option><option value="5m">5m</option>
+            <option value="15m" selected>15m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
+          </select>
+        </div>
+        <div id="pair-list">
+          <div style="text-align:center;padding:40px 0;color:var(--muted);">
+            <div class="spinner" style="margin:0 auto 10px;display:block;width:20px;height:20px;"></div>
+            <div style="font-size:11px;">Loading live prices...</div>
+          </div>
+        </div>
+      </div>
+      <div id="detail-panel">
+        <div style="display:flex;justify-content:center;align-items:center;height:300px;color:var(--muted);font-size:13px;">Select a pair</div>
+      </div>
+    </div>
+  </div>
 
-  input, select {
-    background: #060e16; border: 1px solid var(--border); color: var(--text);
-    font-family: 'Share Tech Mono', monospace; font-size: 13px;
-    padding: 7px 12px; border-radius: 2px; outline: none; width: 100%;
-    transition: border 0.2s;
-  }
-  input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 8px rgba(0,255,224,0.15); }
-  select option { background: #0a1520; }
+  <!-- PORTFOLIO -->
+  <div id="tab-portfolio" class="tab">
+    <div style="max-width:800px;">
+      <!-- Balance card -->
+      <div class="portfolio-card" style="animation:glow 3s ease infinite;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <div>
+            <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Paper Trading Balance</div>
+            <div class="mono" style="font-size:32px;font-weight:700;color:var(--accent);" id="portfolio-balance">$10,000.00</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Total P&L</div>
+            <div class="mono" style="font-size:20px;font-weight:700;" id="portfolio-pnl">$0.00</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+          <div class="stat-box"><div class="stat-label">Total Trades</div><div class="stat-val" id="stat-total">0</div></div>
+          <div class="stat-box"><div class="stat-label">Winning</div><div class="stat-val" style="color:var(--bull);" id="stat-win">0</div></div>
+          <div class="stat-box"><div class="stat-label">Losing</div><div class="stat-val" style="color:var(--bear);" id="stat-loss">0</div></div>
+          <div class="stat-box"><div class="stat-label">Win Rate</div><div class="stat-val" id="stat-rate">0%</div></div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn" onclick="resetPortfolio()" style="font-size:10px;">Reset Portfolio</button>
+        </div>
+      </div>
 
-  .panel {
-    background: var(--panel); border: 1px solid var(--border);
-    border-radius: 3px; position: relative; overflow: hidden;
-  }
-  .panel::before {
-    content:''; position:absolute; top:0; left:0; right:0; height:1px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-    opacity: 0.5;
-  }
+      <!-- Open Positions -->
+      <div class="panel" style="padding:14px 18px;margin-bottom:12px;">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;">Open Positions</div>
+        <div id="open-positions">
+          <div style="color:var(--muted);font-size:11px;text-align:center;padding:14px 0;">No open positions</div>
+        </div>
+      </div>
 
-  .signal-buy { color: var(--bull); }
-  .signal-sell { color: var(--bear); }
-  .signal-hold { color: var(--accent3); }
+      <!-- Trade History -->
+      <div class="panel" style="padding:14px 18px;">
+        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;">Trade History</div>
+        <div id="trade-history" style="max-height:300px;overflow-y:auto;">
+          <div style="color:var(--muted);font-size:11px;text-align:center;padding:14px 0;">No trades yet</div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-  .candle-wrap { display:flex; align-items:flex-end; gap:2px; height:80px; }
-  .candle-body { width:8px; border-radius:1px; position:relative; flex-shrink:0; }
-  .wick { width:1px; background:currentColor; position:absolute; left:50%; transform:translateX(-50%); }
+  <!-- LOGS -->
+  <div id="tab-logs" class="tab">
+    <div class="panel" style="padding:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;" id="log-count">System Log (0)</span>
+        <button class="btn" onclick="clearLogs()" style="font-size:9px;padding:2px 10px;">Clear</button>
+      </div>
+      <div id="log-list" style="max-height:calc(100vh - 220px);overflow-y:auto;"><div style="color:var(--muted);font-size:11px;">No entries yet.</div></div>
+    </div>
+  </div>
+</div>
 
-  .ticker-wrap { overflow:hidden; white-space:nowrap; }
-  .ticker-inner { display:inline-block; animation: ticker 30s linear infinite; }
-`;
-document.head.appendChild(STYLE);
+<script>
+const BACKEND="https://nexus-bot-backend.onrender.com";
+const PAIRS=["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
+const LABELS={BTCUSDT:"BTC/USDT",ETHUSDT:"ETH/USDT",BNBUSDT:"BNB/USDT",SOLUSDT:"SOL/USDT",XRPUSDT:"XRP/USDT"};
+const QUICK={BTCUSDT:["0.001","0.005","0.01"],ETHUSDT:["0.01","0.05","0.1"],BNBUSDT:["0.1","0.5","1"],SOLUSDT:["1","5","10"],XRPUSDT:["10","50","100"]};
 
-// ── Constants ──────────────────────────────────────────────────────────────
-const PAIRS = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
-const PAIR_LABELS = { BTCUSDT:"BTC/USDT", ETHUSDT:"ETH/USDT", BNBUSDT:"BNB/USDT", SOLUSDT:"SOL/USDT", XRPUSDT:"XRP/USDT" };
-const INTERVALS = ["1m","3m","5m","15m","1h","4h","1d"];
+// Portfolio state
+let portfolio={
+  balance:10000,
+  startBalance:10000,
+  positions:{},  // symbol -> {side, qty, entryPrice, time}
+  trades:[],
+  wins:0,
+  losses:0,
+};
 
-// ── Binance API helpers ────────────────────────────────────────────────────
-const BINANCE_REST = "https://api.binance.com/api/v3";
+let S={tickers:{},candles:{},analyses:{},activePair:"BTCUSDT",botRunning:false,autoTrade:false,interval:"15m",logs:[],botInterval:null,modalSym:null};
 
-async function fetchKlines(symbol, interval = "15m", limit = 100) {
-  const res = await fetch(`${BINANCE_REST}/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`);
-  const raw = await res.json();
-  return raw.map(c => ({
-    t: c[0], o: +c[1], h: +c[2], l: +c[3], c: +c[4], v: +c[5]
-  }));
+window.onload=()=>{
+  loadPortfolio();
+  loadData();
+  setInterval(updatePnL, 5000);
+};
+
+// ── Portfolio persistence ──────────────────────────────────────────────────
+function savePortfolio(){localStorage.setItem("nx_portfolio",JSON.stringify(portfolio));}
+function loadPortfolio(){
+  try{const p=JSON.parse(localStorage.getItem("nx_portfolio")||"null");if(p)portfolio=p;}catch(e){}
+  updatePortfolioUI();
+}
+function resetPortfolio(){
+  if(!confirm("Reset portfolio to $10,000?"))return;
+  portfolio={balance:10000,startBalance:10000,positions:{},trades:[],wins:0,losses:0};
+  savePortfolio();updatePortfolioUI();addLog("Portfolio reset to $10,000","info");
 }
 
-async function fetchTicker(symbol) {
-  const res = await fetch(`${BINANCE_REST}/ticker/24hr?symbol=${symbol}`);
-  return res.json();
+function updatePortfolioUI(){
+  const pnl=portfolio.balance-portfolio.startBalance;
+  document.getElementById("portfolio-balance").textContent="$"+portfolio.balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  const pnlEl=document.getElementById("portfolio-pnl");
+  pnlEl.textContent=(pnl>=0?"+$":"-$")+Math.abs(pnl).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  pnlEl.style.color=pnl>=0?"var(--bull)":"var(--bear)";
+  const total=portfolio.trades.length;
+  document.getElementById("stat-total").textContent=total;
+  document.getElementById("stat-win").textContent=portfolio.wins;
+  document.getElementById("stat-loss").textContent=portfolio.losses;
+  document.getElementById("stat-rate").textContent=total>0?Math.round(portfolio.wins/total*100)+"%":"0%";
+  renderPositions();
+  renderTradeHistory();
 }
 
-async function fetchAllTickers() {
-  const res = await fetch(`${BINANCE_REST}/ticker/24hr`);
-  const all = await res.json();
-  return all.filter(t => PAIRS.includes(t.symbol));
-}
-
-// Signed order (requires API key + secret) — browser cannot sign HMAC safely
-// Real signing should be done server-side. We expose the structure here.
-async function placeOrder(apiKey, symbol, side, quantity, apiSecret) {
-  // NOTE: In a real deployment, route this through your backend to sign with HMAC-SHA256
-  const timestamp = Date.now();
-  const params = `symbol=${symbol}&side=${side}&type=MARKET&quantity=${quantity}&timestamp=${timestamp}`;
-  // HMAC signing must be done server-side for security — this is the shape:
-  return {
-    _note: "Route through backend for HMAC signing",
-    endpoint: "POST https://api.binance.com/api/v3/order",
-    headers: { "X-MBX-APIKEY": apiKey },
-    params: params + "&signature=<HMAC_SHA256>",
-  };
-}
-
-// ── Technical Indicators ───────────────────────────────────────────────────
-function calcEMA(closes, period) {
-  const k = 2 / (period + 1);
-  let ema = closes.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  const result = new Array(period - 1).fill(null);
-  result.push(ema);
-  for (let i = period; i < closes.length; i++) {
-    ema = closes[i] * k + ema * (1 - k);
-    result.push(ema);
+function updatePnL(){
+  // Update unrealized PnL for open positions
+  let changed=false;
+  for(const sym in portfolio.positions){
+    const pos=portfolio.positions[sym];
+    const currentPrice=S.tickers[sym]?.lastPrice||pos.entryPrice;
+    const pnl=pos.side==="BUY"?(currentPrice-pos.entryPrice)*pos.qty:(pos.entryPrice-currentPrice)*pos.qty;
+    pos.unrealizedPnL=pnl;
+    changed=true;
   }
-  return result;
+  if(changed)renderPositions();
 }
 
-function calcRSI(closes, period = 14) {
-  const result = new Array(period).fill(null);
-  let gains = 0, losses = 0;
-  for (let i = 1; i <= period; i++) {
-    const diff = closes[i] - closes[i - 1];
-    if (diff > 0) gains += diff; else losses -= diff;
+function renderPositions(){
+  const el=document.getElementById("open-positions");
+  const positions=Object.entries(portfolio.positions);
+  if(!positions.length){el.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:14px 0;">No open positions</div>';return;}
+  el.innerHTML=positions.map(([sym,pos])=>{
+    const currentPrice=S.tickers[sym]?.lastPrice||pos.entryPrice;
+    const pnl=pos.side==="BUY"?(currentPrice-pos.entryPrice)*pos.qty:(pos.entryPrice-currentPrice)*pos.qty;
+    const pnlPct=(pnl/(pos.entryPrice*pos.qty)*100);
+    return`<div class="trade-item" style="border-left:2px solid ${pos.side==="BUY"?"var(--bull)":"var(--bear)"};margin-bottom:6px;padding:8px 10px;">
+      <div style="flex:1;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
+          <span style="font-weight:700;color:${pos.side==="BUY"?"var(--bull)":"var(--bear)"};">${pos.side} ${LABELS[sym]||sym}</span>
+          <span class="mono" style="color:${pnl>=0?"var(--bull)":"var(--bear)"};">${pnl>=0?"+":""}\$${pnl.toFixed(2)} (${pnlPct>=0?"+":""}${pnlPct.toFixed(2)}%)</span>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <span style="font-size:10px;color:var(--muted);">Entry: <span class="mono">$${pos.entryPrice.toFixed(2)}</span></span>
+          <span style="font-size:10px;color:var(--muted);">Current: <span class="mono">$${currentPrice.toFixed(2)}</span></span>
+          <span style="font-size:10px;color:var(--muted);">Qty: <span class="mono">${pos.qty}</span></span>
+        </div>
+      </div>
+      <button onclick="closePosition('${sym}')" style="font-size:10px;padding:4px 10px;cursor:pointer;border:1px solid var(--bear);background:rgba(255,61,90,0.08);color:var(--bear);border-radius:2px;font-family:'Rajdhani',sans-serif;font-weight:700;margin-left:10px;">CLOSE</button>
+    </div>`;
+  }).join("");
+}
+
+function renderTradeHistory(){
+  const el=document.getElementById("trade-history");
+  if(!portfolio.trades.length){el.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:14px 0;">No trades yet</div>';return;}
+  el.innerHTML=[...portfolio.trades].reverse().map(t=>`
+    <div class="trade-item" style="border-left:2px solid ${t.pnl>=0?"var(--bull)":"var(--bear)"};">
+      <span class="mono" style="font-size:9px;color:var(--muted);min-width:55px;">${new Date(t.time).toLocaleTimeString()}</span>
+      <span style="font-size:11px;color:${t.side==="BUY"?"var(--bull)":"var(--bear)"};font-weight:700;min-width:32px;">${t.side}</span>
+      <span style="font-size:11px;flex:1;">${LABELS[t.symbol]||t.symbol}</span>
+      <span class="mono" style="font-size:10px;color:var(--muted);">qty:${t.qty}</span>
+      <span class="mono" style="font-size:10px;margin-left:8px;">$${t.price.toFixed(2)}</span>
+      ${t.pnl!==undefined?`<span class="mono" style="font-size:10px;margin-left:8px;color:${t.pnl>=0?"var(--bull)":"var(--bear)"};">${t.pnl>=0?"+":""}$${t.pnl.toFixed(2)}</span>`:""}
+      <span style="font-size:9px;padding:1px 6px;border-radius:2px;margin-left:6px;background:rgba(0,232,150,0.1);color:var(--bull);">FILLED</span>
+    </div>`).join("");
+}
+
+function closePosition(sym){
+  const pos=portfolio.positions[sym];
+  if(!pos)return;
+  const currentPrice=S.tickers[sym]?.lastPrice||pos.entryPrice;
+  const pnl=pos.side==="BUY"?(currentPrice-pos.entryPrice)*pos.qty:(pos.entryPrice-currentPrice)*pos.qty;
+  portfolio.balance+=pnl;
+  if(pnl>=0)portfolio.wins++;else portfolio.losses++;
+  portfolio.trades.push({symbol:sym,side:pos.side==="BUY"?"SELL":"BUY",qty:pos.qty,price:currentPrice,time:Date.now(),pnl,type:"close"});
+  delete portfolio.positions[sym];
+  savePortfolio();updatePortfolioUI();
+  addLog(`✓ Closed ${LABELS[sym]} position — P&L: ${pnl>=0?"+":""}$${pnl.toFixed(2)}`,pnl>=0?"success":"warn");
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+function openModal(sym){
+  S.modalSym=sym;
+  const t=S.tickers[sym];
+  const price=t?t.lastPrice:0;
+  document.getElementById("m-title").textContent=`Paper Trade ${LABELS[sym]}`;
+  document.getElementById("m-price").textContent=`Price: $${price.toLocaleString(undefined,{maximumFractionDigits:4})} | Balance: $${portfolio.balance.toFixed(2)}`;
+  document.getElementById("m-qty").value="";
+  document.getElementById("m-status").textContent="";
+  document.getElementById("q-btns").innerHTML=(QUICK[sym]||["1","5","10"]).map(q=>
+    `<button class="q-btn" onclick="document.getElementById('m-qty').value='${q}'">${q}</button>`
+  ).join("");
+  document.getElementById("overlay").classList.add("open");
+  setTimeout(()=>document.getElementById("m-qty").focus(),100);
+}
+function closeModal(){document.getElementById("overlay").classList.remove("open");S.modalSym=null;}
+document.getElementById("overlay").addEventListener("click",function(e){if(e.target===this)closeModal();});
+
+function doTrade(side){
+  const sym=S.modalSym;
+  const qty=parseFloat(document.getElementById("m-qty").value);
+  const price=S.tickers[sym]?.lastPrice||0;
+  if(!qty||qty<=0){setMStatus("⚠ Enter valid quantity","orange");return;}
+  if(!price){setMStatus("⚠ No price data","orange");return;}
+  const cost=price*qty;
+  if(side==="BUY"&&cost>portfolio.balance){setMStatus(`⚠ Insufficient balance ($${portfolio.balance.toFixed(2)})`,`var(--bear)`);return;}
+
+  // Check if closing existing position
+  const existingPos=portfolio.positions[sym];
+  if(existingPos&&existingPos.side!==side){
+    closePosition(sym);
+    setMStatus(`✓ Position closed!`,"var(--bull)");
+    setTimeout(closeModal,1500);
+    return;
   }
-  let avgGain = gains / period, avgLoss = losses / period;
-  result.push(avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss));
-  for (let i = period + 1; i < closes.length; i++) {
-    const diff = closes[i] - closes[i - 1];
-    avgGain = (avgGain * (period - 1) + Math.max(diff, 0)) / period;
-    avgLoss = (avgLoss * (period - 1) + Math.max(-diff, 0)) / period;
-    result.push(avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss));
-  }
-  return result;
-}
 
-function calcMACD(closes, fast = 12, slow = 26, signal = 9) {
-  const emaFast = calcEMA(closes, fast);
-  const emaSlow = calcEMA(closes, slow);
-  const macdLine = closes.map((_, i) =>
-    emaFast[i] !== null && emaSlow[i] !== null ? emaFast[i] - emaSlow[i] : null
-  );
-  const validMacd = macdLine.filter(v => v !== null);
-  const signalRaw = calcEMA(validMacd, signal);
-  let si = 0;
-  const signalLine = macdLine.map(v => v === null ? null : signalRaw[si++] ?? null);
-  const histogram = macdLine.map((v, i) =>
-    v !== null && signalLine[i] !== null ? v - signalLine[i] : null
-  );
-  return { macdLine, signalLine, histogram };
-}
+  // Open new position
+  if(side==="BUY"){portfolio.balance-=cost;}
+  else{portfolio.balance+=cost;} // Short — receive funds
 
-function calcBollingerBands(closes, period = 20, stdDev = 2) {
-  return closes.map((_, i) => {
-    if (i < period - 1) return null;
-    const slice = closes.slice(i - period + 1, i + 1);
-    const mean = slice.reduce((a, b) => a + b, 0) / period;
-    const variance = slice.reduce((a, b) => a + (b - mean) ** 2, 0) / period;
-    const sd = Math.sqrt(variance);
-    return { upper: mean + stdDev * sd, middle: mean, lower: mean - stdDev * sd };
+  portfolio.positions[sym]={side,qty,entryPrice:price,time:Date.now(),unrealizedPnL:0};
+  portfolio.trades.push({symbol:sym,side,qty,price,time:Date.now(),type:"open"});
+  savePortfolio();updatePortfolioUI();
+
+  setMStatus(`✓ ${side} ${qty} ${LABELS[sym]} @ $${price.toFixed(2)}`,"var(--bull)");
+  addLog(`📄 PAPER ${side} ${LABELS[sym]} qty:${qty} @ $${price.toFixed(2)}`,"success");
+  setTimeout(closeModal,1500);
+}
+function setMStatus(msg,color){const el=document.getElementById("m-status");el.textContent=msg;el.style.color=color;}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+function switchTab(n){
+  ["dashboard","portfolio","logs"].forEach(t=>{
+    document.getElementById("tab-"+t).classList.toggle("active",t===n);
+    document.getElementById("tab-"+t+"-btn").classList.toggle("active",t===n);
   });
+  if(n==="portfolio")updatePortfolioUI();
 }
 
-function detectCandlePatterns(candles) {
-  const patterns = [];
-  const n = candles.length;
-  if (n < 3) return patterns;
-  const [prev2, prev, curr] = candles.slice(-3);
-
-  // Doji
-  const bodySize = Math.abs(curr.c - curr.o);
-  const totalRange = curr.h - curr.l;
-  if (totalRange > 0 && bodySize / totalRange < 0.1) patterns.push({ name: "Doji", bias: "neutral", strength: 0.5 });
-
-  // Hammer
-  const lowerWick = Math.min(curr.o, curr.c) - curr.l;
-  const upperWick = curr.h - Math.max(curr.o, curr.c);
-  if (lowerWick > bodySize * 2 && upperWick < bodySize * 0.5 && curr.c > curr.o)
-    patterns.push({ name: "Hammer", bias: "bullish", strength: 0.75 });
-
-  // Shooting Star
-  if (upperWick > bodySize * 2 && lowerWick < bodySize * 0.5 && curr.c < curr.o)
-    patterns.push({ name: "Shooting Star", bias: "bearish", strength: 0.75 });
-
-  // Engulfing
-  if (curr.c > curr.o && prev.c < prev.o && curr.o < prev.c && curr.c > prev.o)
-    patterns.push({ name: "Bullish Engulfing", bias: "bullish", strength: 0.85 });
-  if (curr.c < curr.o && prev.c > prev.o && curr.o > prev.c && curr.c < prev.o)
-    patterns.push({ name: "Bearish Engulfing", bias: "bearish", strength: 0.85 });
-
-  // Morning Star
-  const midBodySmall = Math.abs(prev.c - prev.o) < Math.abs(prev2.c - prev2.o) * 0.3;
-  if (prev2.c < prev2.o && midBodySmall && curr.c > curr.o &&
-      curr.c > (prev2.o + prev2.c) / 2)
-    patterns.push({ name: "Morning Star", bias: "bullish", strength: 0.9 });
-
-  return patterns;
-}
-
-// ── AI Signal Engine ───────────────────────────────────────────────────────
-function computeAISignal(candles) {
-  if (candles.length < 50) return { signal: "INSUFFICIENT_DATA", score: 0, confidence: 0, breakdown: [] };
-  const closes = candles.map(c => c.c);
-  const volumes = candles.map(c => c.v);
-
-  const rsi = calcRSI(closes, 14);
-  const { macdLine, signalLine, histogram } = calcMACD(closes);
-  const ema20 = calcEMA(closes, 20);
-  const ema50 = calcEMA(closes, 50);
-  const bb = calcBollingerBands(closes, 20, 2);
-  const patterns = detectCandlePatterns(candles);
-
-  const last = closes.length - 1;
-  const rsiVal = rsi[last];
-  const macdVal = macdLine[last];
-  const sigVal = signalLine[last];
-  const histVal = histogram[last];
-  const ema20Val = ema20[last];
-  const ema50Val = ema50[last];
-  const bbVal = bb[last];
-  const price = closes[last];
-
-  // Volume momentum
-  const avgVol = volumes.slice(-20).reduce((a, b) => a + b, 0) / 20;
-  const currVol = volumes[last];
-  const volSurge = currVol / avgVol;
-
-  let score = 0;
-  const breakdown = [];
-
-  // RSI
-  if (rsiVal < 30) { score += 2; breakdown.push({ label: "RSI Oversold", value: rsiVal.toFixed(1), bias: "bull", weight: 2 }); }
-  else if (rsiVal > 70) { score -= 2; breakdown.push({ label: "RSI Overbought", value: rsiVal.toFixed(1), bias: "bear", weight: 2 }); }
-  else if (rsiVal >= 45 && rsiVal <= 55) { score += 0; breakdown.push({ label: "RSI Neutral", value: rsiVal.toFixed(1), bias: "neutral", weight: 0 }); }
-  else if (rsiVal > 55) { score += 1; breakdown.push({ label: "RSI Bullish Zone", value: rsiVal.toFixed(1), bias: "bull", weight: 1 }); }
-  else { score -= 1; breakdown.push({ label: "RSI Bearish Zone", value: rsiVal.toFixed(1), bias: "bear", weight: 1 }); }
-
-  // MACD
-  if (macdVal !== null && sigVal !== null) {
-    if (macdVal > sigVal && histVal > 0) { score += 2; breakdown.push({ label: "MACD Bullish Cross", value: histVal.toFixed(4), bias: "bull", weight: 2 }); }
-    else if (macdVal < sigVal && histVal < 0) { score -= 2; breakdown.push({ label: "MACD Bearish Cross", value: histVal.toFixed(4), bias: "bear", weight: 2 }); }
+// ── Data loading ───────────────────────────────────────────────────────────
+async function loadData(){
+  try{
+    const r=await fetch(BACKEND+"/tickers");
+    if(!r.ok)throw new Error("failed");
+    const arr=await r.json();
+    arr.forEach(t=>{S.tickers[t.symbol]={lastPrice:parseFloat(t.lastPrice),priceChangePercent:parseFloat(t.priceChangePercent),highPrice:parseFloat(t.highPrice),lowPrice:parseFloat(t.lowPrice),volume:parseFloat(t.volume)};});
+    updateTicker();addLog("✓ Prices loaded","success");
+  }catch(e){addLog("Price error: "+e.message,"error");}
+  for(const sym of PAIRS){
+    try{
+      const r2=await fetch(`${BACKEND}/klines/${sym}?interval=${S.interval}&limit=100`);
+      if(!r2.ok)throw new Error(r2.status);
+      const k=await r2.json();S.candles[sym]=k;S.analyses[sym]=computeAI(k);
+    }catch(e){addLog("Klines error "+sym,"warn");}
   }
-
-  // EMA Trend
-  if (ema20Val && ema50Val) {
-    if (ema20Val > ema50Val && price > ema20Val) { score += 2; breakdown.push({ label: "EMA Uptrend", value: `${ema20Val.toFixed(2)}>${ema50Val.toFixed(2)}`, bias: "bull", weight: 2 }); }
-    else if (ema20Val < ema50Val && price < ema20Val) { score -= 2; breakdown.push({ label: "EMA Downtrend", value: `${ema20Val.toFixed(2)}<${ema50Val.toFixed(2)}`, bias: "bear", weight: 2 }); }
-  }
-
-  // Bollinger Bands
-  if (bbVal) {
-    if (price < bbVal.lower) { score += 1.5; breakdown.push({ label: "BB Lower Band Touch", value: price.toFixed(2), bias: "bull", weight: 1.5 }); }
-    else if (price > bbVal.upper) { score -= 1.5; breakdown.push({ label: "BB Upper Band Touch", value: price.toFixed(2), bias: "bear", weight: 1.5 }); }
-    else breakdown.push({ label: "BB Mid Zone", value: `${((price-bbVal.lower)/(bbVal.upper-bbVal.lower)*100).toFixed(0)}%`, bias: "neutral", weight: 0 });
-  }
-
-  // Candlestick Patterns
-  for (const p of patterns) {
-    const w = p.strength * 2;
-    if (p.bias === "bullish") { score += w; breakdown.push({ label: p.name, value: "Pattern", bias: "bull", weight: w }); }
-    else if (p.bias === "bearish") { score -= w; breakdown.push({ label: p.name, value: "Pattern", bias: "bear", weight: w }); }
-    else breakdown.push({ label: p.name, value: "Pattern", bias: "neutral", weight: 0 });
-  }
-
-  // Volume
-  if (volSurge > 1.5) { score += Math.sign(score) * 0.5; breakdown.push({ label: "Volume Surge", value: `${volSurge.toFixed(1)}x`, bias: score > 0 ? "bull" : "bear", weight: 0.5 }); }
-
-  const maxPossible = 10;
-  const confidence = Math.min(Math.abs(score) / maxPossible * 100, 100);
-  let signal = "HOLD";
-  if (score >= 3) signal = "BUY";
-  else if (score <= -3) signal = "SELL";
-
-  return { signal, score: score.toFixed(2), confidence: confidence.toFixed(1), breakdown, rsi: rsiVal, macdHist: histVal, bbVal, ema20: ema20Val, ema50: ema50Val, patterns };
+  renderPairList();renderDetail();addLog(`✓ Refreshed [${S.interval}]`,"info");
 }
+function onIntervalChange(){S.interval=document.getElementById("interval-select").value;loadData();}
 
-// ── Mini Candle Chart ──────────────────────────────────────────────────────
-function MiniChart({ candles, width = 200, height = 80 }) {
-  const visible = candles.slice(-40);
-  const highs = visible.map(c => c.h);
-  const lows = visible.map(c => c.l);
-  const maxH = Math.max(...highs), minL = Math.min(...lows);
-  const range = maxH - minL || 1;
-  const scale = v => height - ((v - minL) / range) * height;
-
-  const candleW = Math.max(2, Math.floor(width / visible.length) - 1);
-
-  return (
-    <svg width={width} height={height} style={{ display: "block" }}>
-      {visible.map((c, i) => {
-        const bull = c.c >= c.o;
-        const color = bull ? "var(--bull)" : "var(--bear)";
-        const x = i * (candleW + 1);
-        const bodyTop = scale(Math.max(c.o, c.c));
-        const bodyBot = scale(Math.min(c.o, c.c));
-        const bodyH = Math.max(1, bodyBot - bodyTop);
-        return (
-          <g key={i} fill={color} stroke={color}>
-            <line x1={x + candleW / 2} y1={scale(c.h)} x2={x + candleW / 2} y2={scale(c.l)} strokeWidth={1} />
-            <rect x={x} y={bodyTop} width={candleW} height={bodyH} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ── Signal Badge ───────────────────────────────────────────────────────────
-function SignalBadge({ signal }) {
-  const map = { BUY: ["var(--bull)", "▲ BUY"], SELL: ["var(--bear)", "▼ SELL"], HOLD: ["var(--accent3)", "● HOLD"] };
-  const [color, label] = map[signal] || ["var(--muted)", signal];
-  return (
-    <span className="mono" style={{ color, fontSize: 13, fontWeight: 700,
-      background: `${color}18`, border: `1px solid ${color}44`,
-      padding: "3px 10px", borderRadius: 2, letterSpacing: 1 }}>
-      {label}
-    </span>
-  );
-}
-
-// ── Confidence Bar ─────────────────────────────────────────────────────────
-function ConfidenceBar({ confidence, signal }) {
-  const color = signal === "BUY" ? "var(--bull)" : signal === "SELL" ? "var(--bear)" : "var(--accent3)";
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <div style={{ flex: 1, height: 4, background: "#0e2a3a", borderRadius: 2, overflow: "hidden" }}>
-        <div style={{ width: `${confidence}%`, height: "100%", background: color,
-          borderRadius: 2, transition: "width 0.5s ease",
-          boxShadow: `0 0 6px ${color}` }} />
-      </div>
-      <span className="mono" style={{ fontSize: 11, color, minWidth: 38, textAlign: "right" }}>{confidence}%</span>
-    </div>
-  );
-}
-
-// ── Indicator Breakdown ────────────────────────────────────────────────────
-function Breakdown({ items }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-      {items.map((item, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "4px 8px", background: "#060e16", borderRadius: 2,
-          borderLeft: `2px solid ${item.bias === "bull" ? "var(--bull)" : item.bias === "bear" ? "var(--bear)" : "var(--muted)"}` }}>
-          <span style={{ fontSize: 12, color: "var(--text)" }}>{item.label}</span>
-          <span className="mono" style={{ fontSize: 11,
-            color: item.bias === "bull" ? "var(--bull)" : item.bias === "bear" ? "var(--bear)" : "var(--muted)" }}>
-            {item.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Trade Log ──────────────────────────────────────────────────────────────
-function TradeLog({ trades }) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 200, overflowY: "auto" }}>
-      {trades.length === 0 && (
-        <div style={{ color: "var(--muted)", fontSize: 12, textAlign: "center", padding: "20px 0" }}>
-          No trades executed yet
-        </div>
-      )}
-      {[...trades].reverse().map((t, i) => (
-        <div key={i} className="fade-in" style={{ display: "flex", gap: 8, alignItems: "center",
-          padding: "6px 10px", background: "#060e16", borderRadius: 2,
-          borderLeft: `2px solid ${t.side === "BUY" ? "var(--bull)" : "var(--bear)"}` }}>
-          <span className="mono" style={{ fontSize: 10, color: "var(--muted)", minWidth: 58 }}>
-            {new Date(t.time).toLocaleTimeString()}
-          </span>
-          <span style={{ fontSize: 12, color: t.side === "BUY" ? "var(--bull)" : "var(--bear)", fontWeight: 700, minWidth: 32 }}>
-            {t.side}
-          </span>
-          <span style={{ fontSize: 12, flex: 1 }}>{PAIR_LABELS[t.symbol] || t.symbol}</span>
-          <span className="mono" style={{ fontSize: 12 }}>${t.price?.toFixed(2)}</span>
-          <span className="mono" style={{ fontSize: 10, color: "var(--muted)" }}>qty:{t.qty}</span>
-          <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 2,
-            background: t.status === "FILLED" ? "rgba(0,232,150,0.1)" : "rgba(255,165,0,0.1)",
-            color: t.status === "FILLED" ? "var(--bull)" : "orange" }}>
-            {t.status}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Pair Card ──────────────────────────────────────────────────────────────
-function PairCard({ symbol, ticker, candles, analysis, onTrade, isActive, onClick }) {
-  const price = ticker ? parseFloat(ticker.lastPrice) : 0;
-  const change = ticker ? parseFloat(ticker.priceChangePercent) : 0;
-  const bull = change >= 0;
-
-  return (
-    <div className="panel" onClick={onClick}
-      style={{ padding: "14px 16px", cursor: "pointer",
-        borderColor: isActive ? "var(--accent)" : "var(--border)",
-        boxShadow: isActive ? "var(--glow)" : "none",
-        transition: "all 0.2s" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+function renderPairList(){
+  document.getElementById("pair-list").innerHTML=PAIRS.map(sym=>{
+    const t=S.tickers[sym],a=S.analyses[sym];
+    const price=t?.lastPrice||0,chg=t?.priceChangePercent||0,bull=chg>=0;
+    const sig=a?.signal||"LOADING",sc=sig==="BUY"?"var(--bull)":sig==="SELL"?"var(--bear)":sig==="HOLD"?"var(--accent3)":"var(--muted)";
+    const hasPos=!!portfolio.positions[sym];
+    return`<div class="pair-card ${sym===S.activePair?'selected':''}" onclick="selectPair('${sym}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: 1 }}>{PAIR_LABELS[symbol]}</div>
-          <div className="mono" style={{ fontSize: 18, marginTop: 2,
-            color: bull ? "var(--bull)" : "var(--bear)" }}>
-            ${price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-          </div>
+          <div style="font-size:13px;font-weight:700;">${LABELS[sym]}${hasPos?` <span style="font-size:9px;color:var(--accent3);border:1px solid var(--accent3);padding:1px 5px;border-radius:2px;">OPEN</span>`:""}</div>
+          <div class="mono" style="font-size:16px;margin-top:1px;color:${bull?"var(--bull)":"var(--bear)"};">$${price.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:4})}</div>
         </div>
-        <div style={{ textAlign: "right" }}>
-          <SignalBadge signal={analysis?.signal || "..."} />
-          <div className="mono" style={{ fontSize: 12, marginTop: 6,
-            color: bull ? "var(--bull)" : "var(--bear)" }}>
-            {bull ? "+" : ""}{change.toFixed(2)}%
-          </div>
+        <div style="text-align:right;">
+          <span class="signal ${sig.toLowerCase()}">${sig==="BUY"?"▲ BUY":sig==="SELL"?"▼ SELL":sig==="HOLD"?"● HOLD":"⟳"}</span>
+          <div class="mono" style="font-size:10px;margin-top:4px;color:${bull?"var(--bull)":"var(--bear)"};">${bull?"+":""}${chg.toFixed(2)}%</div>
         </div>
       </div>
-      {candles && candles.length > 0 && <MiniChart candles={candles} width={220} height={50} />}
-      {analysis && (
-        <div style={{ marginTop: 8 }}>
-          <ConfidenceBar confidence={+analysis.confidence} signal={analysis.signal} />
-        </div>
-      )}
-    </div>
-  );
+      ${S.candles[sym]?miniChart(S.candles[sym],220,42):""}
+      ${sig!=="LOADING"?`<div class="conf-bar-wrap"><div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${a.confidence}%;background:${sc};"></div></div><span class="mono" style="font-size:10px;color:${sc};min-width:34px;text-align:right;">${a.confidence}%</span></div>`:""}
+    </div>`;
+  }).join("");
 }
+function selectPair(sym){S.activePair=sym;renderPairList();renderDetail();}
 
-// ── Main App ───────────────────────────────────────────────────────────────
-export default function CryptoBotApp() {
-  const [apiKey, setApiKey] = useState("");
-  const [apiSecret, setApiSecret] = useState("");
-  const [interval, setInterval2] = useState("15m");
-  const [tradeQty, setTradeQty] = useState({ BTCUSDT: "0.001", ETHUSDT: "0.01", BNBUSDT: "0.1", SOLUSDT: "1", XRPUSDT: "10" });
-  const [botRunning, setBotRunning] = useState(false);
-  const [activePair, setActivePair] = useState("BTCUSDT");
-  const [candles, setCandles] = useState({});
-  const [tickers, setTickers] = useState({});
-  const [analyses, setAnalyses] = useState({});
-  const [trades, setTrades] = useState([]);
-  const [log, setLog] = useState([]);
-  const [autoTrade, setAutoTrade] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState("dashboard"); // dashboard | config | logs
-  const intervalRef = useRef();
-  const tickerRef = useRef();
-
-  const addLog = useCallback((msg, type = "info") => {
-    setLog(prev => [...prev.slice(-99), { msg, type, time: Date.now() }]);
-  }, []);
-
-  const loadMarketData = useCallback(async () => {
-    try {
-      const tickerData = await fetchAllTickers();
-      const tickerMap = {};
-      tickerData.forEach(t => tickerMap[t.symbol] = t);
-      setTickers(tickerMap);
-
-      const newCandles = {};
-      const newAnalyses = {};
-      for (const sym of PAIRS) {
-        const k = await fetchKlines(sym, interval, 100);
-        newCandles[sym] = k;
-        newAnalyses[sym] = computeAISignal(k);
-      }
-      setCandles(newCandles);
-      setAnalyses(newAnalyses);
-      setLoading(false);
-      addLog(`Market data refreshed [${interval}]`, "info");
-    } catch (e) {
-      addLog(`Data fetch error: ${e.message}`, "error");
-      setLoading(false);
-    }
-  }, [interval, addLog]);
-
-  // Auto-trade execution
-  const executeTrade = useCallback(async (symbol, side) => {
-    if (!apiKey) { addLog("API key required for trading", "warn"); return; }
-    const qty = tradeQty[symbol] || "0.001";
-    const price = tickers[symbol] ? parseFloat(tickers[symbol].lastPrice) : 0;
-
-    addLog(`Executing ${side} ${PAIR_LABELS[symbol]} qty:${qty}`, "trade");
-
-    const result = await placeOrder(apiKey, symbol, side, qty, apiSecret);
-    const trade = { symbol, side, qty, price, time: Date.now(), status: "PENDING", result };
-
-    // In a real setup with backend signing, status would update from WS
-    setTimeout(() => {
-      setTrades(prev => prev.map(t =>
-        t.time === trade.time ? { ...t, status: "FILLED" } : t
-      ));
-      addLog(`${side} ${PAIR_LABELS[symbol]} FILLED @ $${price.toFixed(2)}`, "success");
-    }, 1500);
-
-    setTrades(prev => [...prev, trade]);
-  }, [apiKey, apiSecret, tradeQty, tickers, addLog]);
-
-  const runBotCycle = useCallback(async () => {
-    await loadMarketData();
-    if (autoTrade) {
-      for (const sym of PAIRS) {
-        const a = analyses[sym];
-        if (!a) continue;
-        if (a.signal === "BUY" && +a.confidence > 30) await executeTrade(sym, "BUY");
-        if (a.signal === "SELL" && +a.confidence > 30) await executeTrade(sym, "SELL");
-      }
-    }
-  }, [loadMarketData, autoTrade, analyses, executeTrade]);
-
-  useEffect(() => { loadMarketData(); }, [interval]);
-
-  useEffect(() => {
-    if (botRunning) {
-      addLog("Bot started ✓", "success");
-      intervalRef.current = setInterval(runBotCycle, 30000);
-    } else {
-      clearInterval(intervalRef.current);
-      if (!loading) addLog("Bot stopped", "warn");
-    }
-    return () => clearInterval(intervalRef.current);
-  }, [botRunning]);
-
-  const activeAnalysis = analyses[activePair];
-  const activeCandles = candles[activePair] || [];
-  const activeTicker = tickers[activePair];
-
-  // Ticker bar data
-  const tickerItems = PAIRS.map(s => {
-    const t = tickers[s];
-    if (!t) return null;
-    const c = parseFloat(t.priceChangePercent);
-    return `${PAIR_LABELS[s]}: $${parseFloat(t.lastPrice).toLocaleString(undefined,{maximumFractionDigits:4})} (${c>=0?"+":""}${c.toFixed(2)}%)`;
-  }).filter(Boolean).join("   ·   ");
-
-  return (
-    <div style={{ minHeight: "100vh", background: "var(--bg)", fontFamily: "'Rajdhani', sans-serif" }}>
-      {/* Scanline overlay */}
-      <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
-        background: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,255,224,0.015) 2px, rgba(0,255,224,0.015) 4px)" }} />
-
-      {/* Header */}
-      <div style={{ borderBottom: "1px solid var(--border)", padding: "12px 24px",
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        background: "rgba(10,21,32,0.95)", backdropFilter: "blur(10px)",
-        position: "sticky", top: 0, zIndex: 100 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            <span style={{ fontSize: 20, fontWeight: 700, letterSpacing: 3,
-              background: "linear-gradient(90deg, var(--accent), #00b8ff)",
-              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-              NEXUS BOT
-            </span>
-            <span style={{ fontSize: 10, letterSpacing: 2, color: "var(--muted)", marginTop: -2 }}>
-              BINANCE AI TRADER
-            </span>
-          </div>
-          <div style={{ width: 1, height: 32, background: "var(--border)" }} />
-          <div style={{ display: "flex", gap: 8 }}>
-            {["dashboard","config","logs"].map(t => (
-              <button key={t} className={`btn${tab===t?" active":""}`}
-                onClick={() => setTab(t)} style={{ fontSize: 11, padding: "5px 14px" }}>
-                {t.toUpperCase()}
-              </button>
-            ))}
-          </div>
+function renderDetail(){
+  const sym=S.activePair,t=S.tickers[sym],a=S.analyses[sym],c=S.candles[sym];
+  if(!t){document.getElementById("detail-panel").innerHTML='<div style="color:var(--muted);padding:40px;text-align:center;">Loading...</div>';return;}
+  const bull=t.priceChangePercent>=0,sig=a?.signal||"LOADING";
+  const sc=sig==="BUY"?"var(--bull)":sig==="SELL"?"var(--bear)":sig==="HOLD"?"var(--accent3)":"var(--muted)";
+  const pos=portfolio.positions[sym];
+  const posHtml=pos?`<div style="background:rgba(255,225,53,0.08);border:1px solid rgba(255,225,53,0.3);border-radius:3px;padding:10px 14px;margin-bottom:12px;">
+    <div style="font-size:10px;color:var(--accent3);font-weight:700;margin-bottom:4px;">📊 OPEN POSITION</div>
+    <div style="display:flex;gap:16px;font-size:11px;">
+      <span>Side: <strong style="color:${pos.side==="BUY"?"var(--bull)":"var(--bear)"};">${pos.side}</strong></span>
+      <span>Qty: <strong>${pos.qty}</strong></span>
+      <span>Entry: <strong>$${pos.entryPrice.toFixed(2)}</strong></span>
+      <span>P&L: <strong style="color:${(pos.unrealizedPnL||0)>=0?"var(--bull)":"var(--bear)"};">${(pos.unrealizedPnL||0)>=0?"+":""}$${(pos.unrealizedPnL||0).toFixed(2)}</strong></span>
+    </div>
+  </div>`:"";
+  document.getElementById("detail-panel").innerHTML=`
+    <div class="panel" style="padding:14px 20px;margin-bottom:12px;animation:glow 2.5s ease infinite;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:3px;">${LABELS[sym]}</div>
+          <div class="mono" style="font-size:32px;font-weight:700;color:${bull?"var(--bull)":"var(--bear)"};">$${t.lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:4})}</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <div className="mono" style={{ fontSize: 11, padding: "4px 10px",
-            border: `1px solid ${botRunning ? "var(--bull)" : "var(--muted)"}`,
-            borderRadius: 2, color: botRunning ? "var(--bull)" : "var(--muted)",
-            animation: botRunning ? "pulse 2s infinite" : "none" }}>
-            {botRunning ? "● LIVE" : "○ IDLE"}
-          </div>
-          <button className={`btn${botRunning ? " danger" : ""}`}
-            onClick={() => setBotRunning(r => !r)}>
-            {botRunning ? "STOP BOT" : "START BOT"}
-          </button>
+        <div style="text-align:right;">
+          <span class="signal ${sig.toLowerCase()}">${sig==="BUY"?"▲ BUY":sig==="SELL"?"▼ SELL":sig==="HOLD"?"● HOLD":"⟳ LOADING"}</span>
+          ${sig!=="LOADING"?`<div class="conf-bar-wrap" style="margin-top:6px;min-width:120px;"><div class="conf-bar-bg"><div class="conf-bar-fill" style="width:${a.confidence}%;background:${sc};"></div></div><span class="mono" style="font-size:10px;color:${sc};min-width:34px;text-align:right;">${a.confidence}%</span></div>`:""}
         </div>
       </div>
-
-      {/* Ticker bar */}
-      <div style={{ background: "#060e16", borderBottom: "1px solid var(--border)",
-        padding: "6px 0", overflow: "hidden" }}>
-        <div className="ticker-inner mono" style={{ fontSize: 11, color: "var(--muted)", whiteSpace: "nowrap" }}>
-          {tickerItems ? `${tickerItems}   ·   ${tickerItems}` : "Loading market data..."}
-        </div>
-      </div>
-
-      <div style={{ padding: "20px 24px", maxWidth: 1400, margin: "0 auto" }}>
-
-        {/* DASHBOARD TAB */}
-        {tab === "dashboard" && (
-          <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 20, alignItems: "start" }}>
-            {/* Pair list */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                <span style={{ fontSize: 11, letterSpacing: 2, color: "var(--muted)", textTransform: "uppercase" }}>Watchlist</span>
-                <select value={interval} onChange={e => setInterval2(e.target.value)}
-                  style={{ width: "auto", fontSize: 11, padding: "3px 8px" }}>
-                  {INTERVALS.map(i => <option key={i} value={i}>{i}</option>)}
-                </select>
-              </div>
-              {loading ? (
-                <div style={{ color: "var(--muted)", fontSize: 13, textAlign: "center", padding: 40 }}>
-                  <div style={{ animation: "pulse 1s infinite" }}>Loading market data...</div>
-                </div>
-              ) : (
-                PAIRS.map(sym => (
-                  <PairCard key={sym} symbol={sym}
-                    ticker={tickers[sym]} candles={candles[sym]}
-                    analysis={analyses[sym]}
-                    isActive={activePair === sym}
-                    onClick={() => setActivePair(sym)} />
-                ))
-              )}
-            </div>
-
-            {/* Detail panel */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-              {/* Price header */}
-              {activeTicker && (
-                <div className="panel glow-beat" style={{ padding: "18px 24px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: 13, letterSpacing: 2, color: "var(--muted)", textTransform: "uppercase", marginBottom: 4 }}>
-                        {PAIR_LABELS[activePair]}
-                      </div>
-                      <div className="mono" style={{ fontSize: 36, fontWeight: 700,
-                        color: parseFloat(activeTicker.priceChangePercent) >= 0 ? "var(--bull)" : "var(--bear)" }}>
-                        ${parseFloat(activeTicker.lastPrice).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 4 })}
-                      </div>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 8, alignItems: "flex-end" }}>
-                      <SignalBadge signal={activeAnalysis?.signal || "..."} />
-                      {activeAnalysis && <ConfidenceBar confidence={+activeAnalysis.confidence} signal={activeAnalysis.signal} />}
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 16 }}>
-                    {[
-                      ["24h High", parseFloat(activeTicker.highPrice).toLocaleString(undefined,{maximumFractionDigits:4})],
-                      ["24h Low", parseFloat(activeTicker.lowPrice).toLocaleString(undefined,{maximumFractionDigits:4})],
-                      ["Volume", (parseFloat(activeTicker.volume)/1000).toFixed(2)+"K"],
-                      ["Change", (parseFloat(activeTicker.priceChangePercent)>=0?"+":"")+parseFloat(activeTicker.priceChangePercent).toFixed(2)+"%"],
-                    ].map(([k, v]) => (
-                      <div key={k} style={{ background: "#060e16", padding: "8px 12px", borderRadius: 2 }}>
-                        <div style={{ fontSize: 10, color: "var(--muted)", letterSpacing: 1, textTransform: "uppercase" }}>{k}</div>
-                        <div className="mono" style={{ fontSize: 14, marginTop: 3 }}>{v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Chart */}
-              {activeCandles.length > 0 && (
-                <div className="panel" style={{ padding: "16px 20px" }}>
-                  <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--muted)", marginBottom: 10, textTransform: "uppercase" }}>
-                    Candlestick Chart — {interval}
-                  </div>
-                  <MiniChart candles={activeCandles} width={700} height={120} />
-                </div>
-              )}
-
-              {/* AI Analysis */}
-              {activeAnalysis && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                  <div className="panel" style={{ padding: "16px 20px" }}>
-                    <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--muted)", marginBottom: 12, textTransform: "uppercase" }}>
-                      AI Indicator Breakdown
-                    </div>
-                    <Breakdown items={activeAnalysis.breakdown} />
-                  </div>
-                  <div className="panel" style={{ padding: "16px 20px" }}>
-                    <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--muted)", marginBottom: 12, textTransform: "uppercase" }}>
-                      Signal Summary
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      {[
-                        ["RSI", activeAnalysis.rsi?.toFixed(2) ?? "—"],
-                        ["MACD Hist", activeAnalysis.macdHist?.toFixed(4) ?? "—"],
-                        ["EMA 20", activeAnalysis.ema20?.toFixed(2) ?? "—"],
-                        ["EMA 50", activeAnalysis.ema50?.toFixed(2) ?? "—"],
-                        ["AI Score", activeAnalysis.score],
-                        ["Confidence", activeAnalysis.confidence + "%"],
-                        ["Patterns", activeAnalysis.patterns?.map(p=>p.name).join(", ") || "None"],
-                      ].map(([k, v]) => (
-                        <div key={k} style={{ display: "flex", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: 12, color: "var(--muted)" }}>{k}</span>
-                          <span className="mono" style={{ fontSize: 12 }}>{v}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <div style={{ marginTop: 20, display: "flex", gap: 10 }}>
-                      <button className="btn" onClick={() => executeTrade(activePair, "BUY")}
-                        style={{ flex: 1, borderColor: "var(--bull)", color: "var(--bull)" }}>
-                        MANUAL BUY
-                      </button>
-                      <button className="btn danger" onClick={() => executeTrade(activePair, "SELL")}
-                        style={{ flex: 1 }}>
-                        MANUAL SELL
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Trade Log */}
-              <div className="panel" style={{ padding: "16px 20px" }}>
-                <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--muted)", marginBottom: 12, textTransform: "uppercase" }}>
-                  Trade Log ({trades.length})
-                </div>
-                <TradeLog trades={trades} />
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* CONFIG TAB */}
-        {tab === "config" && (
-          <div style={{ maxWidth: 600 }}>
-            <div className="panel" style={{ padding: 28 }}>
-              <div style={{ fontSize: 13, letterSpacing: 2, color: "var(--accent)", marginBottom: 24, textTransform: "uppercase", fontWeight: 700 }}>
-                ⚙ Bot Configuration
-              </div>
-
-              <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                <div>
-                  <label style={{ fontSize: 11, letterSpacing: 1, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
-                    Binance API Key
-                  </label>
-                  <input type="password" value={apiKey} onChange={e => setApiKey(e.target.value)}
-                    placeholder="Your Binance API Key..." />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, letterSpacing: 1, color: "var(--muted)", textTransform: "uppercase", display: "block", marginBottom: 6 }}>
-                    API Secret
-                  </label>
-                  <input type="password" value={apiSecret} onChange={e => setApiSecret(e.target.value)}
-                    placeholder="Your Binance API Secret..." />
-                </div>
-                <div style={{ background: "rgba(255,165,0,0.08)", border: "1px solid rgba(255,165,0,0.3)",
-                  borderRadius: 3, padding: "12px 16px", fontSize: 12, color: "orange", lineHeight: 1.6 }}>
-                  ⚠ <strong>Security Warning:</strong> Never expose your API secret in a browser-based app.
-                  For real trading, route order signing through a secure backend server using HMAC-SHA256.
-                  Enable IP whitelist and trade-only permissions on Binance for your API key.
-                </div>
-
-                <div style={{ borderTop: "1px solid var(--border)", paddingTop: 18 }}>
-                  <div style={{ fontSize: 11, letterSpacing: 1, color: "var(--muted)", textTransform: "uppercase", marginBottom: 14 }}>
-                    Trade Quantities per Pair
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {PAIRS.map(sym => (
-                      <div key={sym} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                        <span style={{ fontSize: 13, fontWeight: 600, minWidth: 90 }}>{PAIR_LABELS[sym]}</span>
-                        <input type="number" step="any" value={tradeQty[sym]}
-                          onChange={e => setTradeQty(q => ({ ...q, [sym]: e.target.value }))} />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between",
-                  padding: "12px 16px", background: "#060e16", borderRadius: 3 }}>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>Auto-Trading</div>
-                    <div style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
-                      Execute BUY/SELL when AI confidence &gt; 60%
-                    </div>
-                  </div>
-                  <div onClick={() => setAutoTrade(v => !v)}
-                    style={{ width: 44, height: 24, borderRadius: 12,
-                      background: autoTrade ? "var(--bull)" : "var(--border)",
-                      position: "relative", cursor: "pointer", transition: "background 0.3s",
-                      boxShadow: autoTrade ? "0 0 12px rgba(0,232,150,0.4)" : "none" }}>
-                    <div style={{ position: "absolute", top: 2, left: autoTrade ? 22 : 2,
-                      width: 20, height: 20, borderRadius: "50%", background: "#fff",
-                      transition: "left 0.3s" }} />
-                  </div>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 13 }}>Candle Interval</span>
-                  <select value={interval} onChange={e => setInterval2(e.target.value)} style={{ flex: 1 }}>
-                    {INTERVALS.map(i => <option key={i} value={i}>{i}</option>)}
-                  </select>
-                </div>
-
-                <button className="btn" onClick={loadMarketData} style={{ alignSelf: "flex-start" }}>
-                  Refresh Market Data
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* LOGS TAB */}
-        {tab === "logs" && (
-          <div className="panel" style={{ padding: 20 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-              <span style={{ fontSize: 11, letterSpacing: 2, color: "var(--muted)", textTransform: "uppercase" }}>System Log</span>
-              <button className="btn" onClick={() => setLog([])} style={{ fontSize: 10, padding: "3px 12px" }}>Clear</button>
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: "calc(100vh - 260px)", overflowY: "auto" }}>
-              {log.length === 0 && <div style={{ color: "var(--muted)", fontSize: 12 }}>No log entries yet.</div>}
-              {[...log].reverse().map((l, i) => (
-                <div key={i} className="mono" style={{ fontSize: 12, padding: "4px 10px", borderRadius: 2,
-                  background: "#060e16",
-                  color: l.type === "error" ? "var(--bear)" : l.type === "success" ? "var(--bull)" :
-                    l.type === "warn" ? "orange" : l.type === "trade" ? "var(--accent)" : "var(--text)" }}>
-                  [{new Date(l.time).toLocaleTimeString()}] {l.msg}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;">
+        ${[["24h High","$"+t.highPrice.toLocaleString(undefined,{maximumFractionDigits:4})],["24h Low","$"+t.lowPrice.toLocaleString(undefined,{maximumFractionDigits:4})],["Volume",(t.volume/1000).toFixed(1)+"K"],["Balance","$"+portfolio.balance.toFixed(2)]].map(([k,v])=>`<div class="stat-box"><div class="stat-label">${k}</div><div class="stat-val">${v}</div></div>`).join("")}
       </div>
     </div>
-  );
+    ${posHtml}
+    ${c?`<div class="panel" style="padding:12px 18px;margin-bottom:12px;"><div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">Candlestick — ${S.interval}</div>${miniChart(c,680,110)}</div>`:""}
+    ${a&&sig!=="LOADING"?`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="panel" style="padding:12px 16px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">AI Breakdown</div>
+        ${a.breakdown.map(item=>`<div class="breakdown-item" style="border-left:2px solid ${item.bias==="bull"?"var(--bull)":item.bias==="bear"?"var(--bear)":"var(--muted)"};">
+          <span style="font-size:11px;">${item.label}</span>
+          <span class="mono" style="font-size:10px;color:${item.bias==="bull"?"var(--bull)":item.bias==="bear"?"var(--bear)":"var(--muted)"};">${item.value}</span>
+        </div>`).join("")}
+      </div>
+      <div class="panel" style="padding:12px 16px;">
+        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">Signal Summary</div>
+        ${[["RSI",a.rsi?.toFixed(2)??"—"],["MACD Hist",a.macdHist?.toFixed(4)??"—"],["EMA 20",a.ema20?.toFixed(2)??"—"],["EMA 50",a.ema50?.toFixed(2)??"—"],["AI Score",a.score],["Confidence",a.confidence+"%"],["Patterns",a.patterns?.map(p=>p.name).join(", ")||"None"]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;"><span style="font-size:11px;color:var(--muted);">${k}</span><span class="mono" style="font-size:11px;">${v}</span></div>`).join("")}
+        <div style="margin-top:14px;">
+          <div style="font-size:9px;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">📄 Paper Trade — enter qty in popup</div>
+          <div style="display:flex;gap:8px;">
+            <button class="m-buy" onclick="openModal('${sym}')">▲ BUY</button>
+            <button class="m-sell" onclick="openModal('${sym}')">▼ SELL</button>
+          </div>
+          ${pos?`<button onclick="closePosition('${sym}')" style="width:100%;margin-top:8px;padding:8px;font-size:11px;cursor:pointer;border:1px solid var(--accent3);background:rgba(255,225,53,0.08);color:var(--accent3);border-radius:3px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;">⊗ CLOSE POSITION</button>`:""}
+        </div>
+      </div>
+    </div>`:""}`;
 }
+
+function updateTicker(){
+  const str=PAIRS.map(s=>{const t=S.tickers[s];if(!t)return null;const c=t.priceChangePercent;return`${LABELS[s]}: $${t.lastPrice.toLocaleString(undefined,{maximumFractionDigits:4})} (${c>=0?"+":""}${c.toFixed(2)}%)`;}).filter(Boolean).join("   ·   ");
+  if(str)document.getElementById("ticker-bar").innerHTML=`<div class="ticker-inner">${str}&nbsp;&nbsp;&nbsp;·&nbsp;&nbsp;&nbsp;${str}</div>`;
+}
+
+function miniChart(candles,width,height){
+  const vis=candles.slice(-40);if(!vis.length)return"";
+  const maxH=Math.max(...vis.map(c=>c.h)),minL=Math.min(...vis.map(c=>c.l)),range=maxH-minL||1;
+  const sc=v=>height-((v-minL)/range)*height,cw=Math.max(2,Math.floor(width/vis.length)-1);
+  return`<svg width="${width}" height="${height}" style="display:block;">${vis.map((c,i)=>{const bull=c.c>=c.o,col=bull?"#00e896":"#ff3d5a",x=i*(cw+1),bt=sc(Math.max(c.o,c.c)),bb=sc(Math.min(c.o,c.c));return`<g fill="${col}" stroke="${col}"><line x1="${x+cw/2}" y1="${sc(c.h)}" x2="${x+cw/2}" y2="${sc(c.l)}" stroke-width="1"/><rect x="${x}" y="${bt}" width="${cw}" height="${Math.max(1,bb-bt)}"/></g>`;}).join("")}</svg>`;
+}
+
+// ── Auto trade ─────────────────────────────────────────────────────────────
+function autoTrade(sym,side){
+  const price=S.tickers[sym]?.lastPrice||0;
+  if(!price)return;
+  const qty={"BTCUSDT":"0.001","ETHUSDT":"0.01","BNBUSDT":"0.1","SOLUSDT":"1","XRPUSDT":"10"}[sym]||"1";
+  const qtyN=parseFloat(qty);
+  const existingPos=portfolio.positions[sym];
+
+  // If we have an open position and signal is opposite — CLOSE it (take profit/loss)
+  if(existingPos){
+    if(existingPos.side==="BUY"&&side==="SELL"){
+      closePosition(sym);
+      addLog(`🤖 AUTO CLOSED ${LABELS[sym]} position`,"success");
+    }
+    // Never open two positions in same direction
+    return;
+  }
+
+  // No position — only open on BUY signal (spot trading logic: buy first, sell to close)
+  if(side==="BUY"){
+    const cost=price*qtyN;
+    if(cost>portfolio.balance){addLog(`⚠ Insufficient balance for ${LABELS[sym]}`,"warn");return;}
+    portfolio.balance-=cost;
+    portfolio.positions[sym]={side:"BUY",qty:qtyN,entryPrice:price,time:Date.now(),unrealizedPnL:0};
+    portfolio.trades.push({symbol:sym,side:"BUY",qty:qtyN,price,time:Date.now(),type:"open"});
+    savePortfolio();updatePortfolioUI();
+    addLog(`🤖 AUTO BUY ${LABELS[sym]} qty:${qty} @ $${price.toFixed(2)}`,"success");
+  }
+  // Ignore standalone SELL signals when no position open (no short selling)
+}
+
+function toggleBot(){
+  S.botRunning=!S.botRunning;
+  const btn=document.getElementById("start-btn"),badge=document.getElementById("bot-badge");
+  if(S.botRunning){
+    btn.textContent="STOP BOT";btn.classList.add("danger");
+    badge.textContent="● LIVE";badge.style.color="var(--bull)";badge.style.borderColor="var(--bull)";badge.style.animation="pulse 2s infinite";
+    addLog("🤖 Bot started — paper trading mode","success");
+    const runCycle=async()=>{
+      await loadData();
+      if(S.autoTrade){
+        for(const sym of PAIRS){
+          const a=S.analyses[sym];
+          if(!a||a.signal==="LOADING")continue;
+          if(a.signal==="BUY"&&+a.confidence>30)autoTrade(sym,"BUY");
+          if(a.signal==="SELL"&&+a.confidence>30)autoTrade(sym,"SELL");
+        }
+      }
+    };
+    runCycle();
+    S.botInterval=setInterval(runCycle,30000);
+  }else{
+    clearInterval(S.botInterval);btn.textContent="START BOT";btn.classList.remove("danger");
+    badge.textContent="○ IDLE";badge.style.color="var(--muted)";badge.style.borderColor="var(--muted)";badge.style.animation="none";
+    addLog("Bot stopped","warn");
+  }
+}
+
+function toggleAuto(){
+  S.autoTrade=!S.autoTrade;
+  document.getElementById("auto-toggle").classList.toggle("on",S.autoTrade);
+  addLog(`Auto-trading ${S.autoTrade?"ENABLED ✓":"DISABLED"}`,S.autoTrade?"success":"warn");
+  if(S.autoTrade&&!S.botRunning){
+    addLog("⚠ Click START BOT to begin auto-trading","warn");
+  }
+}
+
+function addLog(msg,type="info"){
+  S.logs.unshift({msg,type,time:Date.now()});if(S.logs.length>150)S.logs.pop();
+  const cols={error:"var(--bear)",success:"var(--bull)",warn:"orange",info:"var(--text)"};
+  document.getElementById("log-list").innerHTML=S.logs.map(l=>`<div class="log-item" style="color:${cols[l.type]||cols.info};">[${new Date(l.time).toLocaleTimeString()}] ${l.msg}</div>`).join("")||'<div style="color:var(--muted);font-size:11px;">No entries.</div>';
+  document.getElementById("log-count").textContent=`System Log (${S.logs.length})`;
+}
+function clearLogs(){S.logs=[];document.getElementById("log-list").innerHTML='<div style="color:var(--muted);font-size:11px;">No entries.</div>';document.getElementById("log-count").textContent="System Log (0)";}
+
+function calcEMA(c,p){const k=2/(p+1);let e=c.slice(0,p).reduce((a,b)=>a+b,0)/p;const r=new Array(p-1).fill(null);r.push(e);for(let i=p;i<c.length;i++){e=c[i]*k+e*(1-k);r.push(e);}return r;}
+function calcRSI(c,p=14){const r=new Array(p).fill(null);let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d;}let ag=g/p,al=l/p;r.push(al===0?100:100-100/(1+ag/al));for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];ag=(ag*(p-1)+Math.max(d,0))/p;al=(al*(p-1)+Math.max(-d,0))/p;r.push(al===0?100:100-100/(1+ag/al));}return r;}
+function calcMACD(c){const ef=calcEMA(c,12),es=calcEMA(c,26);const ml=c.map((_,i)=>ef[i]!=null&&es[i]!=null?ef[i]-es[i]:null);const vm=ml.filter(v=>v!=null);const sr=calcEMA(vm,9);let si=0;const sl=ml.map(v=>v==null?null:sr[si++]??null);return{ml,sl,h:ml.map((v,i)=>v!=null&&sl[i]!=null?v-sl[i]:null)};}
+function computeAI(candles){
+  if(candles.length<50)return{signal:"LOADING",score:0,confidence:0,breakdown:[],patterns:[],rsi:null,macdHist:null,ema20:null,ema50:null};
+  const closes=candles.map(c=>c.c),vols=candles.map(c=>c.v);
+  const rsi=calcRSI(closes);const{ml,sl,h}=calcMACD(closes);const e20=calcEMA(closes,20),e50=calcEMA(closes,50);
+  const i=closes.length-1,rv=rsi[i],mv=ml[i],sv=sl[i],hv=h[i],e20v=e20[i],e50v=e50[i],price=closes[i];
+  const avgVol=vols.slice(-20).reduce((a,b)=>a+b,0)/20,vs=vols[i]/avgVol;
+  let score=0;const bd=[];
+  if(rv<30){score+=2;bd.push({label:"RSI Oversold",value:rv.toFixed(1),bias:"bull"});}else if(rv>70){score-=2;bd.push({label:"RSI Overbought",value:rv.toFixed(1),bias:"bear"});}else if(rv>55){score+=1;bd.push({label:"RSI Bullish Zone",value:rv.toFixed(1),bias:"bull"});}else{score-=1;bd.push({label:"RSI Bearish Zone",value:rv.toFixed(1),bias:"bear"});}
+  if(mv!=null&&sv!=null){if(mv>sv&&hv>0){score+=2;bd.push({label:"MACD Bull Cross",value:hv.toFixed(4),bias:"bull"});}else if(mv<sv&&hv<0){score-=2;bd.push({label:"MACD Bear Cross",value:hv.toFixed(4),bias:"bear"});}else bd.push({label:"MACD Neutral",value:"—",bias:"neutral"});}
+  if(e20v&&e50v){if(e20v>e50v&&price>e20v){score+=2;bd.push({label:"EMA Uptrend",value:e20v.toFixed(0)+">"+e50v.toFixed(0),bias:"bull"});}else if(e20v<e50v&&price<e20v){score-=2;bd.push({label:"EMA Downtrend",value:e20v.toFixed(0)+"<"+e50v.toFixed(0),bias:"bear"});}else bd.push({label:"EMA Neutral",value:"—",bias:"neutral"});}
+  if(vs>1.5)bd.push({label:"Volume Surge",value:vs.toFixed(1)+"x",bias:score>0?"bull":"bear"});
+  const patterns=[];
+  if(candles.length>=3){const[,pv,c]=candles.slice(-3);const bs=Math.abs(c.c-c.o),tr=c.h-c.l;if(tr>0&&bs/tr<0.1)patterns.push({name:"Doji"});const lw=Math.min(c.o,c.c)-c.l,uw=c.h-Math.max(c.o,c.c);if(lw>bs*2&&uw<bs*0.5&&c.c>c.o){score+=1.5;patterns.push({name:"Hammer"});}if(uw>bs*2&&lw<bs*0.5&&c.c<c.o){score-=1.5;patterns.push({name:"Shooting Star"});}if(c.c>c.o&&pv.c<pv.o&&c.o<pv.c&&c.c>pv.o){score+=1.7;patterns.push({name:"Bullish Engulfing"});}if(c.c<c.o&&pv.c>pv.o&&c.o>pv.c&&c.c<pv.o){score-=1.7;patterns.push({name:"Bearish Engulfing"});}}
+  const conf=Math.min(Math.abs(score)/10*100,100);
+  return{signal:score>=3?"BUY":score<=-3?"SELL":"HOLD",score:score.toFixed(2),confidence:conf.toFixed(1),breakdown:bd,patterns,rsi:rv,macdHist:hv,ema20:e20v,ema50:e50v};
+}
+</script>
+</body>
+</html>
