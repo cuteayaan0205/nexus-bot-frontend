@@ -200,6 +200,13 @@ select option{background:#0a1520;}
             <option value="1m" selected>1m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
           </select>
         </div>
+        <!-- Coin Search -->
+        <div style="position:relative;margin-bottom:8px;">
+          <input id="coin-search" type="text" placeholder="🔍 Search any coin..." oninput="searchCoins(this.value)" autocomplete="off"
+            style="width:100%;box-sizing:border-box;background:rgba(0,255,224,0.05);border:1px solid var(--border);border-radius:4px;padding:7px 10px;font-size:11px;color:var(--text);outline:none;"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="setTimeout(()=>{const d=document.getElementById('coin-dropdown');if(d)d.style.display='none';},200);this.style.borderColor='var(--border)'"/>
+          <div id="coin-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--border);border-radius:4px;z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.5);"></div>
+        </div>
         <div id="pair-list">
           <div style="text-align:center;padding:40px 0;color:var(--muted);">
             <div class="spinner" style="margin:0 auto 10px;display:block;width:20px;height:20px;"></div>
@@ -860,7 +867,7 @@ async function fetchAllCoins(){
 }
 
 function searchCoins(query){
-  const resultsEl=document.getElementById("search-results");
+  const resultsEl=document.getElementById("coin-dropdown");
   if(!query||query.length<2){resultsEl.style.display="none";return;}
   query=query.toUpperCase();
   const matches=allCoins.filter(s=>s.includes(query)).slice(0,15);
@@ -876,7 +883,7 @@ function searchCoins(query){
 }
 
 async function addToWatchlist(sym){
-  document.getElementById("search-results").style.display="none";
+  document.getElementById("coin-dropdown").style.display="none";
   document.getElementById("coin-search").value="";
   if(!PAIRS.includes(sym)){
     PAIRS.push(sym);
