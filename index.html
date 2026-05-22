@@ -6,7 +6,7 @@
 <title>NEXUS BOT — AI Crypto Trader</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
-:root{--bg:#050a0e;--panel:#0a1520;--border:#0e2a3a;--accent:#00ffe0;--accent3:#ffe135;--bull:#00e896;--bear:#ff3d5a;--text:#c8dde8;--muted:#3a6070;}
+:root{--bg:#050a0e;--panel:#0a1520;--border:#0e2a3a;--accent:#00ffe0;--accent3:#ffe135;--bull:#00e896;--bear:#ff3d5a;--text:#c8dde8;--muted:#8ab4c8;}
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;min-height:100vh;}
 .mono{font-family:'Share Tech Mono',monospace;}
@@ -49,7 +49,7 @@ select option{background:#0a1520;}
 #ticker-bar{overflow:hidden;background:#060e16;border-bottom:1px solid var(--border);padding:5px 0;min-height:26px;}
 .ticker-inner{display:inline-block;white-space:nowrap;animation:ticker 40s linear infinite;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--muted);padding:0 20px;}
 .stat-box{background:#060e16;padding:7px 10px;border-radius:2px;}
-.stat-label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;}
+.stat-label{font-size:9px;color:#ffffff;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
 .stat-val{font-size:13px;margin-top:2px;font-family:'Share Tech Mono',monospace;}
 /* Modal */
 #overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:999;justify-content:center;align-items:center;}
@@ -58,7 +58,7 @@ select option{background:#0a1520;}
 #modal::before{content:'';position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
 .m-title{font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;}
 .m-price{font-size:11px;color:var(--muted);margin-bottom:14px;font-family:'Share Tech Mono',monospace;}
-.m-label{font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px;}
+.m-label{font-size:9px;color:#c8dde8;letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:5px;}
 .m-input{font-size:18px;padding:10px 14px;text-align:center;letter-spacing:2px;border-width:2px;margin-bottom:8px;}
 .m-input:focus{border-color:var(--accent);}
 .q-btns{display:flex;gap:5px;margin-bottom:16px;flex-wrap:wrap;}
@@ -194,7 +194,7 @@ select option{background:#0a1520;}
     <div style="display:grid;grid-template-columns:255px 1fr;gap:14px;align-items:start;">
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-          <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;">Watchlist</span>
+          <span style="font-size:9px;letter-spacing:2px;color:#ffffff;text-transform:uppercase;font-weight:700;">Watchlist</span>
           <select id="interval-select" onchange="onIntervalChange()" style="width:auto;font-size:10px;padding:2px 6px;">
             <option value="1m">1m</option><option value="3m">3m</option><option value="5m">5m</option>
             <option value="1m" selected>1m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
@@ -227,11 +227,11 @@ select option{background:#0a1520;}
       <div class="portfolio-card" style="animation:glow 3s ease infinite;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <div>
-            <div style="font-size:10px;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">Paper Trading Balance</div>
+            <div style="font-size:10px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Paper Trading Balance</div>
             <div class="mono" style="font-size:32px;font-weight:700;color:var(--accent);" id="portfolio-balance">$10,000.00</div>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">Total P&L</div>
+            <div style="font-size:10px;color:#ffffff;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Total P&L</div>
             <div class="mono" style="font-size:20px;font-weight:700;" id="portfolio-pnl">$0.00</div>
           </div>
         </div>
@@ -249,7 +249,7 @@ select option{background:#0a1520;}
 
       <!-- Open Positions -->
       <div class="panel" style="padding:14px 18px;margin-bottom:12px;">
-        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;">Open Positions</div>
+        <div style="font-size:10px;letter-spacing:2px;color:#ffffff;margin-bottom:12px;text-transform:uppercase;font-weight:700;">Open Positions</div>
         <div id="open-positions">
           <div style="color:var(--muted);font-size:11px;text-align:center;padding:14px 0;">No open positions</div>
         </div>
@@ -257,7 +257,7 @@ select option{background:#0a1520;}
 
       <!-- Trade History -->
       <div class="panel" style="padding:14px 18px;">
-        <div style="font-size:10px;letter-spacing:2px;color:var(--muted);margin-bottom:12px;text-transform:uppercase;">Trade History</div>
+        <div style="font-size:10px;letter-spacing:2px;color:#ffffff;margin-bottom:12px;text-transform:uppercase;font-weight:700;">Trade History</div>
         <div id="trade-history" style="max-height:300px;overflow-y:auto;">
           <div style="color:var(--muted);font-size:11px;text-align:center;padding:14px 0;">No trades yet</div>
         </div>
@@ -436,9 +436,9 @@ function renderPositions(){
           <span class="mono" style="color:${pnl>=0?"var(--bull)":"var(--bear)"};">${pnl>=0?"+":""}\$${pnl.toFixed(2)} (${pnlPct>=0?"+":""}${pnlPct.toFixed(2)}%)</span>
         </div>
         <div style="display:flex;gap:16px;">
-          <span style="font-size:10px;color:var(--muted);">Entry: <span class="mono">$${pos.entryPrice.toFixed(2)}</span></span>
-          <span style="font-size:10px;color:var(--muted);">Current: <span class="mono">$${currentPrice.toFixed(2)}</span></span>
-          <span style="font-size:10px;color:var(--muted);">Qty: <span class="mono">${pos.qty}</span></span>
+          <span style="font-size:10px;color:#8ab4c8;">Entry: <span class="mono">$${pos.entryPrice.toFixed(2)}</span></span>
+          <span style="font-size:10px;color:#8ab4c8;">Current: <span class="mono">$${currentPrice.toFixed(2)}</span></span>
+          <span style="font-size:10px;color:#8ab4c8;">Qty: <span class="mono">${pos.qty}</span></span>
         </div>
       </div>
       <button onclick="closePosition('${sym}')" style="font-size:10px;padding:4px 10px;cursor:pointer;border:1px solid var(--bear);background:rgba(255,61,90,0.08);color:var(--bear);border-radius:2px;font-family:'Rajdhani',sans-serif;font-weight:700;margin-left:10px;">CLOSE</button>
@@ -451,10 +451,10 @@ function renderTradeHistory(){
   if(!portfolio.trades.length){el.innerHTML='<div style="color:var(--muted);font-size:11px;text-align:center;padding:14px 0;">No trades yet</div>';return;}
   el.innerHTML=[...portfolio.trades].reverse().map(t=>`
     <div class="trade-item" style="border-left:2px solid ${t.pnl>=0?"var(--bull)":"var(--bear)"};">
-      <span class="mono" style="font-size:9px;color:var(--muted);min-width:55px;">${new Date(t.time).toLocaleTimeString()}</span>
+      <span class="mono" style="font-size:9px;color:#8ab4c8;min-width:55px;">${new Date(t.time).toLocaleTimeString()}</span>
       <span style="font-size:11px;color:${t.side==="BUY"?"var(--bull)":"var(--bear)"};font-weight:700;min-width:32px;">${t.side}</span>
       <span style="font-size:11px;flex:1;">${LABELS[t.symbol]||t.symbol}</span>
-      <span class="mono" style="font-size:10px;color:var(--muted);">qty:${t.qty}</span>
+      <span class="mono" style="font-size:10px;color:#8ab4c8;">qty:${t.qty}</span>
       <span class="mono" style="font-size:10px;margin-left:8px;">$${t.price.toFixed(2)}</span>
       ${t.pnl!==undefined?`<span class="mono" style="font-size:10px;margin-left:8px;color:${t.pnl>=0?"var(--bull)":"var(--bear)"};">${t.pnl>=0?"+":""}$${t.pnl.toFixed(2)}</span>`:""}
       <span style="font-size:9px;padding:1px 6px;border-radius:2px;margin-left:6px;background:rgba(0,232,150,0.1);color:var(--bull);">FILLED</span>
@@ -526,11 +526,11 @@ function openModal(sym){
   const sellVol=t?(t.volume*0.48).toFixed(0):"—";
   document.getElementById("m-vol-info").innerHTML=`
     <div style="flex:1;background:#060e16;padding:6px 10px;border-radius:2px;border-left:2px solid var(--bull);">
-      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">BUY VOLUME</div>
+      <div style="font-size:9px;color:#ffffff;letter-spacing:1px;font-weight:700;">BUY VOLUME</div>
       <div class="mono" style="font-size:12px;color:var(--bull);">${parseFloat(buyVol).toLocaleString()}</div>
     </div>
     <div style="flex:1;background:#060e16;padding:6px 10px;border-radius:2px;border-left:2px solid var(--bear);">
-      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">SELL VOLUME</div>
+      <div style="font-size:9px;color:#ffffff;letter-spacing:1px;font-weight:700;">SELL VOLUME</div>
       <div class="mono" style="font-size:12px;color:var(--bear);">${parseFloat(sellVol).toLocaleString()}</div>
     </div>`;
 
@@ -681,7 +681,7 @@ function renderDetail(){
     <div class="panel" style="padding:14px 20px;margin-bottom:12px;animation:glow 2.5s ease infinite;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
         <div>
-          <div style="font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:3px;">${LABELS[sym]}</div>
+          <div style="font-size:10px;letter-spacing:2px;color:#ffffff;text-transform:uppercase;margin-bottom:3px;font-weight:700;">${LABELS[sym]}</div>
           <div class="mono" style="font-size:32px;font-weight:700;color:${bull?"var(--bull)":"var(--bear)"};">$${t.lastPrice.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:4})}</div>
         </div>
         <div style="text-align:right;">
@@ -694,19 +694,19 @@ function renderDetail(){
       </div>
     </div>
     ${posHtml}
-    ${c?`<div class="panel" style="padding:12px 18px;margin-bottom:12px;"><div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;">Candlestick — ${S.interval}</div>${miniChart(c,680,110)}</div>`:""}
+    ${c?`<div class="panel" style="padding:12px 18px;margin-bottom:12px;"><div style="font-size:9px;letter-spacing:2px;color:#ffffff;margin-bottom:8px;text-transform:uppercase;font-weight:700;">Candlestick — ${S.interval}</div>${miniChart(c,680,110)}</div>`:""}
     ${a&&sig!=="LOADING"?`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
       <div class="panel" style="padding:12px 16px;">
-        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">AI Breakdown</div>
+        <div style="font-size:9px;letter-spacing:2px;color:#ffffff;margin-bottom:10px;text-transform:uppercase;font-weight:700;">AI Breakdown</div>
         ${a.breakdown.map(item=>`<div class="breakdown-item" style="border-left:2px solid ${item.bias==="bull"?"var(--bull)":item.bias==="bear"?"var(--bear)":"var(--muted)"};">
-          <span style="font-size:11px;">${item.label}</span>
+          <span style="font-size:11px;color:#ffffff;font-weight:600;">${item.label}</span>
           <span class="mono" style="font-size:10px;color:${item.bias==="bull"?"var(--bull)":item.bias==="bear"?"var(--bear)":"var(--muted)"};">${item.value}</span>
         </div>`).join("")}
       </div>
       <div class="panel" style="padding:12px 16px;">
-        <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">Signal Summary</div>
-        ${[["RSI",a.rsi?.toFixed(2)??"—"],["MACD Hist",a.macdHist?.toFixed(4)??"—"],["EMA 9",a.ema9?.toFixed(2)??"—"],["EMA 20",a.ema20?.toFixed(2)??"—"],["EMA 50",a.ema50?.toFixed(2)??"—"],["AI Score",a.score],["Confidence",a.confidence+"%"],["Signal Req","≥65% conf"],["Patterns",a.patterns?.map(p=>p.name).join(", ")||"None"]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;"><span style="font-size:11px;color:var(--muted);">${k}</span><span class="mono" style="font-size:11px;">${v}</span></div>`).join("")}
+        <div style="font-size:9px;letter-spacing:2px;color:#ffffff;margin-bottom:10px;text-transform:uppercase;font-weight:700;">Signal Summary</div>
+        ${[["RSI",a.rsi?.toFixed(2)??"—"],["MACD Hist",a.macdHist?.toFixed(4)??"—"],["EMA 9",a.ema9?.toFixed(2)??"—"],["EMA 20",a.ema20?.toFixed(2)??"—"],["EMA 50",a.ema50?.toFixed(2)??"—"],["AI Score",a.score],["Confidence",a.confidence+"%"],["Signal Req","≥65% conf"],["Patterns",a.patterns?.map(p=>p.name).join(", ")||"None"]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;"><span style="font-size:11px;color:#ffffff;font-weight:600;">${k}</span><span class="mono" style="font-size:11px;">${v}</span></div>`).join("")}
         <div style="margin-top:14px;">
           <div style="font-size:9px;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">📄 Paper Trade — enter qty in popup</div>
           <div style="display:flex;gap:8px;">
