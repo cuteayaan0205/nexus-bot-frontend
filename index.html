@@ -734,14 +734,14 @@ function miniChart(candles,width,height){
 // ── Risk Management Constants ──────────────────────────────────────────────
 const STOP_LOSS_PCT  = 0.015; // 1.5% — hard stop loss
 const TAKE_PROFIT_PCT = 0.025; // 2.5% — take profit target
-const MAX_POSITIONS  = 2;     // max simultaneous open trades
+const MAX_POSITIONS  = 5;     // max simultaneous open trades (all 5 pairs)
 
 // ── Auto trade ─────────────────────────────────────────────────────────────
 function autoTrade(sym,side){
   const price=S.tickers[sym]?.lastPrice||0;
   if(!price)return;
-  const qty={"BTCUSDT":"0.001","ETHUSDT":"0.01","BNBUSDT":"0.1","SOLUSDT":"1","XRPUSDT":"10"}[sym]||"1";
-  const qtyN=parseFloat(qty);
+  // Allocate 10% of total balance per trade (dynamic qty based on price)
+  const allocAmount = portfolio.balance * 0.10;
   const existingPos=portfolio.positions[sym];
 
   // If position open — check SL/TP first, then signal-based close
@@ -773,15 +773,17 @@ function autoTrade(sym,side){
       addLog(`⚠ Max ${MAX_POSITIONS} positions reached — skipping ${LABELS[sym]}`,"warn");
       return;
     }
-    const cost=price*qtyN;
-    if(cost>portfolio.balance){addLog(`⚠ Insufficient balance for ${LABELS[sym]}`,"warn");return;}
+    const totalBalance = portfolio.balance + Object.values(portfolio.positions).reduce((s,p)=>s+(p.entryPrice*p.qty),0);
+    const cost = Math.min(allocAmount, totalBalance * 0.10); // 10% of total portfolio
+    if(cost > portfolio.balance){addLog(`⚠ Insufficient balance for ${LABELS[sym]} (need $${cost.toFixed(2)})`,"warn");return;}
+    const qtyN = parseFloat((cost / price).toFixed(6));
     const sl=(price*(1-STOP_LOSS_PCT));
     const tp=(price*(1+TAKE_PROFIT_PCT));
     portfolio.balance-=cost;
-    portfolio.positions[sym]={side:"BUY",qty:qtyN,entryPrice:price,time:Date.now(),unrealizedPnL:0,stopLoss:sl,takeProfit:tp};
+    portfolio.positions[sym]={side:"BUY",qty:qtyN,entryPrice:price,time:Date.now(),unrealizedPnL:0,stopLoss:sl,takeProfit:tp,allocatedCost:cost};
     portfolio.trades.push({symbol:sym,side:"BUY",qty:qtyN,price,time:Date.now(),type:"open"});
     savePortfolio();updatePortfolioUI();
-    addLog(`🤖 AUTO BUY ${LABELS[sym]} qty:${qty} @ $${price.toFixed(2)} | SL:$${sl.toFixed(2)} TP:$${tp.toFixed(2)}`,"success");
+    addLog(`🤖 AUTO BUY ${LABELS[sym]} qty:${qtyN} @ $${price.toFixed(2)} | Alloc:$${cost.toFixed(2)} (10%) | SL:$${sl.toFixed(2)} TP:$${tp.toFixed(2)}`,"success");
   }
 }
 
