@@ -864,6 +864,8 @@ function computeAI(candles){
   const conf=Math.min(Math.abs(score)/10*100,100);
   return{signal:score>=3?"BUY":score<=-3?"SELL":"HOLD",score:score.toFixed(2),confidence:conf.toFixed(1),breakdown:bd,patterns,rsi:rv,macdHist:hv,ema20:e20v,ema50:e50v};
 }
+STOP_LOSS_PCT = 0.015    # 1.5% — exit if price drops 1.5% from entry
+TAKE_PROFIT_PCT = 0.025  # 2.5% — lock profit at 2.5% gain
 </script>
 </body>
 </html>
