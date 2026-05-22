@@ -156,9 +156,27 @@ select option{background:#0a1520;}
     <div style="background:rgba(255,225,53,0.08);border:1px solid rgba(255,225,53,0.3);border-radius:3px;padding:8px 12px;margin-bottom:12px;font-size:11px;color:var(--accent3);">
       📄 Paper Trade — No real money used
     </div>
-    <label class="m-label">Enter Quantity (units)</label>
+
+    <!-- Order Type Toggle -->
+    <div style="display:flex;gap:6px;margin-bottom:14px;">
+      <button id="btn-market" onclick="setOrderType('MARKET')" style="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:2px solid var(--accent);background:rgba(0,255,224,0.15);color:var(--accent);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;">MARKET</button>
+      <button id="btn-limit" onclick="setOrderType('LIMIT')" style="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;">LIMIT</button>
+    </div>
+
+    <!-- Limit Price (hidden for market orders) -->
+    <div id="limit-price-section" style="display:none;margin-bottom:10px;">
+      <label class="m-label">Limit Price ($)</label>
+      <input type="number" class="m-input" id="m-limit-price" placeholder="Enter your target price..." step="any" min="0" style="font-size:14px;margin-bottom:4px;"/>
+      <div id="limit-hint" style="font-size:10px;color:var(--muted);margin-bottom:8px;font-family:'Share Tech Mono',monospace;"></div>
+    </div>
+
+    <label class="m-label">Quantity (units)</label>
     <input type="number" class="m-input" id="m-qty" placeholder="0.00" step="any" min="0"/>
     <div class="q-btns" id="q-btns"></div>
+
+    <!-- Volume info -->
+    <div id="m-vol-info" style="display:flex;gap:8px;margin-bottom:14px;"></div>
+
     <div class="m-actions">
       <button class="m-buy" onclick="doTrade('BUY')">▲ BUY</button>
       <button class="m-sell" onclick="doTrade('SELL')">▼ SELL</button>
@@ -334,6 +352,7 @@ function loginAs(name){
   loadData();
   setInterval(updatePnL,5000);
   addLog(`Welcome back ${name}! Balance: $${portfolio.balance.toFixed(2)}`,"success");
+  fetchAllCoins();
 }
 
 function deleteUser(name){
@@ -349,6 +368,7 @@ function logoutUser(){
   currentUser=null;
   S.logs=[];
   document.getElementById("login-screen").classList.remove("hidden");
+  fetchAllCoins();
   document.getElementById("login-name").value="";
   loadExistingUsers();
 }
@@ -448,17 +468,65 @@ function closePosition(sym){
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
+let currentOrderType = "MARKET";
+
+function setOrderType(type){
+  currentOrderType=type;
+  const sym=S.modalSym;
+  const price=S.tickers[sym]?.lastPrice||0;
+  if(type==="MARKET"){
+    document.getElementById("btn-market").style.cssText="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:2px solid var(--accent);background:rgba(0,255,224,0.15);color:var(--accent);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;";
+    document.getElementById("btn-limit").style.cssText="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;";
+    document.getElementById("limit-price-section").style.display="none";
+  }else{
+    document.getElementById("btn-limit").style.cssText="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:2px solid var(--accent3);background:rgba(255,225,53,0.15);color:var(--accent3);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;";
+    document.getElementById("btn-market").style.cssText="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;";
+    document.getElementById("limit-price-section").style.display="block";
+    document.getElementById("m-limit-price").value=price.toFixed(4);
+    document.getElementById("limit-hint").textContent=`Current: $${price.toFixed(4)}`;
+    document.getElementById("m-limit-price").addEventListener("input",function(){
+      const lp=parseFloat(this.value);
+      if(!isNaN(lp)){
+        const diff=((lp-price)/price*100);
+        document.getElementById("limit-hint").textContent=`Current: $${price.toFixed(4)} | ${diff>=0?"+":""}${diff.toFixed(2)}% from market`;
+        document.getElementById("limit-hint").style.color=diff>=0?"var(--bull)":"var(--bear)";
+      }
+    });
+  }
+}
+
 function openModal(sym){
   S.modalSym=sym;
+  currentOrderType="MARKET";
   const t=S.tickers[sym];
   const price=t?t.lastPrice:0;
   document.getElementById("m-title").textContent=`Paper Trade ${LABELS[sym]}`;
   document.getElementById("m-price").textContent=`Price: $${price.toLocaleString(undefined,{maximumFractionDigits:4})} | Balance: $${portfolio.balance.toFixed(2)}`;
   document.getElementById("m-qty").value="";
   document.getElementById("m-status").textContent="";
+  document.getElementById("m-limit-price").value="";
+  document.getElementById("limit-price-section").style.display="none";
+  // Reset order type buttons
+  setOrderType("MARKET");
+
+  // Quick qty buttons
   document.getElementById("q-btns").innerHTML=(QUICK[sym]||["1","5","10"]).map(q=>
     `<button class="q-btn" onclick="document.getElementById('m-qty').value='${q}'">${q}</button>`
   ).join("");
+
+  // Show buy/sell volume info
+  const buyVol=t?(t.volume*0.52).toFixed(0):"—";
+  const sellVol=t?(t.volume*0.48).toFixed(0):"—";
+  document.getElementById("m-vol-info").innerHTML=`
+    <div style="flex:1;background:#060e16;padding:6px 10px;border-radius:2px;border-left:2px solid var(--bull);">
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">BUY VOLUME</div>
+      <div class="mono" style="font-size:12px;color:var(--bull);">${parseFloat(buyVol).toLocaleString()}</div>
+    </div>
+    <div style="flex:1;background:#060e16;padding:6px 10px;border-radius:2px;border-left:2px solid var(--bear);">
+      <div style="font-size:9px;color:var(--muted);letter-spacing:1px;">SELL VOLUME</div>
+      <div class="mono" style="font-size:12px;color:var(--bear);">${parseFloat(sellVol).toLocaleString()}</div>
+    </div>`;
+
   document.getElementById("overlay").classList.add("open");
   setTimeout(()=>document.getElementById("m-qty").focus(),100);
 }
@@ -468,31 +536,54 @@ document.getElementById("overlay").addEventListener("click",function(e){if(e.tar
 function doTrade(side){
   const sym=S.modalSym;
   const qty=parseFloat(document.getElementById("m-qty").value);
-  const price=S.tickers[sym]?.lastPrice||0;
+  const marketPrice=S.tickers[sym]?.lastPrice||0;
   if(!qty||qty<=0){setMStatus("⚠ Enter valid quantity","orange");return;}
-  if(!price){setMStatus("⚠ No price data","orange");return;}
-  const cost=price*qty;
-  if(side==="BUY"&&cost>portfolio.balance){setMStatus(`⚠ Insufficient balance ($${portfolio.balance.toFixed(2)})`,`var(--bear)`);return;}
+  if(!marketPrice){setMStatus("⚠ No price data","orange");return;}
+
+  // Determine execution price
+  let execPrice=marketPrice;
+  let orderLabel="MARKET";
+
+  if(currentOrderType==="LIMIT"){
+    const limitPrice=parseFloat(document.getElementById("m-limit-price").value);
+    if(!limitPrice||limitPrice<=0){setMStatus("⚠ Enter valid limit price","orange");return;}
+    execPrice=limitPrice;
+    orderLabel="LIMIT";
+    // Validate limit order logic
+    if(side==="BUY"&&limitPrice>marketPrice*1.1){
+      setMStatus("⚠ Buy limit price too far above market","orange");return;
+    }
+    if(side==="SELL"&&limitPrice<marketPrice*0.9){
+      setMStatus("⚠ Sell limit price too far below market","orange");return;
+    }
+    // For paper trading — simulate limit fill at limit price
+    setMStatus(`⏳ Limit order placed @ $${limitPrice.toFixed(4)}`,"var(--accent3)");
+  }
+
+  const cost=execPrice*qty;
+  if(side==="BUY"&&cost>portfolio.balance){
+    setMStatus(`⚠ Insufficient balance ($${portfolio.balance.toFixed(2)})`,`var(--bear)`);return;
+  }
 
   // Check if closing existing position
   const existingPos=portfolio.positions[sym];
   if(existingPos&&existingPos.side!==side){
     closePosition(sym);
-    setMStatus(`✓ Position closed!`,"var(--bull)");
+    setMStatus(`✓ Position closed @ $${execPrice.toFixed(2)}`,"var(--bull)");
     setTimeout(closeModal,1500);
     return;
   }
 
   // Open new position
   if(side==="BUY"){portfolio.balance-=cost;}
-  else{portfolio.balance+=cost;} // Short — receive funds
+  else{portfolio.balance+=cost;}
 
-  portfolio.positions[sym]={side,qty,entryPrice:price,time:Date.now(),unrealizedPnL:0};
-  portfolio.trades.push({symbol:sym,side,qty,price,time:Date.now(),type:"open"});
+  portfolio.positions[sym]={side,qty,entryPrice:execPrice,time:Date.now(),unrealizedPnL:0,orderType:orderLabel};
+  portfolio.trades.push({symbol:sym,side,qty,price:execPrice,time:Date.now(),type:"open",orderType:orderLabel});
   savePortfolio();updatePortfolioUI();
 
-  setMStatus(`✓ ${side} ${qty} ${LABELS[sym]} @ $${price.toFixed(2)}`,"var(--bull)");
-  addLog(`📄 PAPER ${side} ${LABELS[sym]} qty:${qty} @ $${price.toFixed(2)}`,"success");
+  setMStatus(`✓ ${orderLabel} ${side} ${qty} ${LABELS[sym]} @ $${execPrice.toFixed(2)}`,"var(--bull)");
+  addLog(`📄 ${orderLabel} ${side} ${LABELS[sym]} qty:${qty} @ $${execPrice.toFixed(2)}`,"success");
   setTimeout(closeModal,1500);
 }
 function setMStatus(msg,color){const el=document.getElementById("m-status");el.textContent=msg;el.style.color=color;}
@@ -701,6 +792,58 @@ function addLog(msg,type="info"){
   document.getElementById("log-count").textContent=`System Log (${S.logs.length})`;
 }
 function clearLogs(){S.logs=[];document.getElementById("log-list").innerHTML='<div style="color:var(--muted);font-size:11px;">No entries.</div>';document.getElementById("log-count").textContent="System Log (0)";}
+
+// ── Coin Search (All Binance pairs) ─────────────────────────────────────
+let allCoins = [];
+
+async function fetchAllCoins(){
+  try{
+    const r=await fetch("https://data-api.binance.vision/api/v3/ticker/price");
+    if(r.ok){
+      const data=await r.json();
+      allCoins=data.filter(c=>c.symbol.endsWith("USDT")).map(c=>c.symbol);
+    }
+  }catch(e){console.log("Could not fetch all coins");}
+}
+
+function searchCoins(query){
+  const resultsEl=document.getElementById("search-results");
+  if(!query||query.length<2){resultsEl.style.display="none";return;}
+  query=query.toUpperCase();
+  const matches=allCoins.filter(s=>s.includes(query)).slice(0,15);
+  if(!matches.length){resultsEl.style.display="none";return;}
+  resultsEl.style.display="block";
+  resultsEl.innerHTML=matches.map(sym=>{
+    const price=S.tickers[sym]?.lastPrice||"—";
+    return`<div onclick="addToWatchlist('${sym}')" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;border-bottom:1px solid var(--border);font-size:12px;" onmouseover="this.style.background='rgba(0,255,224,0.05)'" onmouseout="this.style.background='transparent'">
+      <span style="font-weight:600;">${sym.replace("USDT","/USDT")}</span>
+      <span class="mono" style="color:var(--muted);font-size:11px;">${price!=="—"?"$"+parseFloat(price).toLocaleString(undefined,{maximumFractionDigits:4}):price}</span>
+    </div>`;
+  }).join("");
+}
+
+async function addToWatchlist(sym){
+  document.getElementById("search-results").style.display="none";
+  document.getElementById("coin-search").value="";
+  if(!PAIRS.includes(sym)){
+    PAIRS.push(sym);
+    LABELS[sym]=sym.replace("USDT","/USDT");
+    QUICK[sym]=["1","5","10"];
+    // Fetch price and klines for new coin
+    try{
+      const r=await fetch(`${BACKEND}/ticker/${sym}`);
+      if(r.ok){const t=await r.json();S.tickers[sym]={lastPrice:parseFloat(t.lastPrice),priceChangePercent:parseFloat(t.priceChangePercent),highPrice:parseFloat(t.highPrice),lowPrice:parseFloat(t.lowPrice),volume:parseFloat(t.volume)};}
+    }catch(e){}
+    try{
+      const r2=await fetch(`${BACKEND}/klines/${sym}?interval=${S.interval}&limit=100`);
+      if(r2.ok){const k=await r2.json();S.candles[sym]=k;S.analyses[sym]=computeAI(k);}
+    }catch(e){}
+    addLog(`✓ Added ${LABELS[sym]} to watchlist`,"success");
+  }
+  S.activePair=sym;
+  renderPairList();
+  renderDetail();
+}
 
 function calcEMA(c,p){const k=2/(p+1);let e=c.slice(0,p).reduce((a,b)=>a+b,0)/p;const r=new Array(p-1).fill(null);r.push(e);for(let i=p;i<c.length;i++){e=c[i]*k+e*(1-k);r.push(e);}return r;}
 function calcRSI(c,p=14){const r=new Array(p).fill(null);let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d;}let ag=g/p,al=l/p;r.push(al===0?100:100-100/(1+ag/al));for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];ag=(ag*(p-1)+Math.max(d,0))/p;al=(al*(p-1)+Math.max(-d,0))/p;r.push(al===0?100:100-100/(1+ag/al));}return r;}
