@@ -289,7 +289,7 @@ let portfolio={
   losses:0,
 };
 
-let S={tickers:{},candles:{},analyses:{},activePair:"BTCUSDT",botRunning:false,autoTrade:false,interval:"1m",logs:[],botInterval:null,modalSym:null};
+let S={tickers:{},candles:{},analyses:{},activePair:"BTCUSDT",botRunning:false,autoTrade:false,interval:"1m",logs:[],botInterval:null,slInterval:null,modalSym:null};
 
 window.onload=()=>{
   showLoginScreen();
@@ -658,11 +658,16 @@ function renderDetail(){
   const pos=portfolio.positions[sym];
   const posHtml=pos?`<div style="background:rgba(255,225,53,0.08);border:1px solid rgba(255,225,53,0.3);border-radius:3px;padding:10px 14px;margin-bottom:12px;">
     <div style="font-size:10px;color:var(--accent3);font-weight:700;margin-bottom:4px;">📊 OPEN POSITION</div>
-    <div style="display:flex;gap:16px;font-size:11px;">
+    <div style="display:flex;gap:16px;font-size:11px;flex-wrap:wrap;">
       <span>Side: <strong style="color:${pos.side==="BUY"?"var(--bull)":"var(--bear)"};">${pos.side}</strong></span>
       <span>Qty: <strong>${pos.qty}</strong></span>
       <span>Entry: <strong>$${pos.entryPrice.toFixed(2)}</strong></span>
       <span>P&L: <strong style="color:${(pos.unrealizedPnL||0)>=0?"var(--bull)":"var(--bear)"};">${(pos.unrealizedPnL||0)>=0?"+":""}$${(pos.unrealizedPnL||0).toFixed(2)}</strong></span>
+    </div>
+    <div style="display:flex;gap:16px;font-size:10px;margin-top:6px;">
+      <span style="color:var(--bear);">🛑 SL: <strong>$${pos.stopLoss?pos.stopLoss.toFixed(2):"—"}</strong></span>
+      <span style="color:var(--bull);">🎯 TP: <strong>$${pos.takeProfit?pos.takeProfit.toFixed(2):"—"}</strong></span>
+      <span style="color:var(--muted);">Risk: <strong style="color:var(--bear);">-1.5%</strong> | Reward: <strong style="color:var(--bull);">+2.5%</strong></span>
     </div>
   </div>`:"";
   document.getElementById("detail-panel").innerHTML=`
@@ -694,7 +699,7 @@ function renderDetail(){
       </div>
       <div class="panel" style="padding:12px 16px;">
         <div style="font-size:9px;letter-spacing:2px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;">Signal Summary</div>
-        ${[["RSI",a.rsi?.toFixed(2)??"—"],["MACD Hist",a.macdHist?.toFixed(4)??"—"],["EMA 20",a.ema20?.toFixed(2)??"—"],["EMA 50",a.ema50?.toFixed(2)??"—"],["AI Score",a.score],["Confidence",a.confidence+"%"],["Patterns",a.patterns?.map(p=>p.name).join(", ")||"None"]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;"><span style="font-size:11px;color:var(--muted);">${k}</span><span class="mono" style="font-size:11px;">${v}</span></div>`).join("")}
+        ${[["RSI",a.rsi?.toFixed(2)??"—"],["MACD Hist",a.macdHist?.toFixed(4)??"—"],["EMA 9",a.ema9?.toFixed(2)??"—"],["EMA 20",a.ema20?.toFixed(2)??"—"],["EMA 50",a.ema50?.toFixed(2)??"—"],["AI Score",a.score],["Confidence",a.confidence+"%"],["Signal Req","≥65% conf"],["Patterns",a.patterns?.map(p=>p.name).join(", ")||"None"]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;"><span style="font-size:11px;color:var(--muted);">${k}</span><span class="mono" style="font-size:11px;">${v}</span></div>`).join("")}
         <div style="margin-top:14px;">
           <div style="font-size:9px;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">📄 Paper Trade — enter qty in popup</div>
           <div style="display:flex;gap:8px;">
@@ -719,6 +724,11 @@ function miniChart(candles,width,height){
   return`<svg width="${width}" height="${height}" style="display:block;">${vis.map((c,i)=>{const bull=c.c>=c.o,col=bull?"#00e896":"#ff3d5a",x=i*(cw+1),bt=sc(Math.max(c.o,c.c)),bb=sc(Math.min(c.o,c.c));return`<g fill="${col}" stroke="${col}"><line x1="${x+cw/2}" y1="${sc(c.h)}" x2="${x+cw/2}" y2="${sc(c.l)}" stroke-width="1"/><rect x="${x}" y="${bt}" width="${cw}" height="${Math.max(1,bb-bt)}"/></g>`;}).join("")}</svg>`;
 }
 
+// ── Risk Management Constants ──────────────────────────────────────────────
+const STOP_LOSS_PCT  = 0.015; // 1.5% — hard stop loss
+const TAKE_PROFIT_PCT = 0.025; // 2.5% — take profit target
+const MAX_POSITIONS  = 2;     // max simultaneous open trades
+
 // ── Auto trade ─────────────────────────────────────────────────────────────
 function autoTrade(sym,side){
   const price=S.tickers[sym]?.lastPrice||0;
@@ -727,26 +737,63 @@ function autoTrade(sym,side){
   const qtyN=parseFloat(qty);
   const existingPos=portfolio.positions[sym];
 
-  // If we have an open BUY position and SELL signal fires — CLOSE it
+  // If position open — check SL/TP first, then signal-based close
   if(existingPos){
-    if(existingPos.side==="BUY"&&side==="SELL"){
-      closePosition(sym);
-      addLog(`🤖 AUTO SELL — closed ${LABELS[sym]} position`,"success");
+    if(existingPos.side==="BUY"){
+      const pnlPct=(price-existingPos.entryPrice)/existingPos.entryPrice;
+      if(pnlPct<=-STOP_LOSS_PCT){
+        closePosition(sym);
+        addLog(`🛑 STOP LOSS hit ${LABELS[sym]} — ${(pnlPct*100).toFixed(2)}% loss`,"error");
+        return;
+      }
+      if(pnlPct>=TAKE_PROFIT_PCT){
+        closePosition(sym);
+        addLog(`🎯 TAKE PROFIT hit ${LABELS[sym]} — +${(pnlPct*100).toFixed(2)}% gain`,"success");
+        return;
+      }
+      if(side==="SELL"){
+        closePosition(sym);
+        addLog(`🤖 AUTO SELL signal — closed ${LABELS[sym]}`,"success");
+      }
     }
     return;
   }
 
-  // No position — only open on BUY signal (spot trading logic: buy first, sell to close)
+  // No position — only open new BUY if under MAX_POSITIONS
   if(side==="BUY"){
+    const openCount=Object.keys(portfolio.positions).length;
+    if(openCount>=MAX_POSITIONS){
+      addLog(`⚠ Max ${MAX_POSITIONS} positions reached — skipping ${LABELS[sym]}`,"warn");
+      return;
+    }
     const cost=price*qtyN;
     if(cost>portfolio.balance){addLog(`⚠ Insufficient balance for ${LABELS[sym]}`,"warn");return;}
+    const sl=(price*(1-STOP_LOSS_PCT));
+    const tp=(price*(1+TAKE_PROFIT_PCT));
     portfolio.balance-=cost;
-    portfolio.positions[sym]={side:"BUY",qty:qtyN,entryPrice:price,time:Date.now(),unrealizedPnL:0};
+    portfolio.positions[sym]={side:"BUY",qty:qtyN,entryPrice:price,time:Date.now(),unrealizedPnL:0,stopLoss:sl,takeProfit:tp};
     portfolio.trades.push({symbol:sym,side:"BUY",qty:qtyN,price,time:Date.now(),type:"open"});
     savePortfolio();updatePortfolioUI();
-    addLog(`🤖 AUTO BUY ${LABELS[sym]} qty:${qty} @ $${price.toFixed(2)}`,"success");
+    addLog(`🤖 AUTO BUY ${LABELS[sym]} qty:${qty} @ $${price.toFixed(2)} | SL:$${sl.toFixed(2)} TP:$${tp.toFixed(2)}`,"success");
   }
-  // Ignore standalone SELL signals when no position open (no short selling)
+}
+
+// ── SL/TP monitor — runs every 10s when bot is live ────────────────────────
+function checkStopLosses(){
+  for(const sym of Object.keys(portfolio.positions)){
+    const pos=portfolio.positions[sym];
+    if(!pos||pos.side!=="BUY")continue;
+    const price=S.tickers[sym]?.lastPrice;
+    if(!price)continue;
+    const pnlPct=(price-pos.entryPrice)/pos.entryPrice;
+    if(pnlPct<=-STOP_LOSS_PCT){
+      closePosition(sym);
+      addLog(`🛑 STOP LOSS triggered ${LABELS[sym]} @ $${price.toFixed(2)} — ${(pnlPct*100).toFixed(2)}%`,"error");
+    } else if(pnlPct>=TAKE_PROFIT_PCT){
+      closePosition(sym);
+      addLog(`🎯 TAKE PROFIT triggered ${LABELS[sym]} @ $${price.toFixed(2)} — +${(pnlPct*100).toFixed(2)}%`,"success");
+    }
+  }
 }
 
 function toggleBot(){
@@ -758,19 +805,25 @@ function toggleBot(){
     addLog("🤖 Bot started — paper trading mode","success");
     const runCycle=async()=>{
       await loadData();
+      checkStopLosses(); // always run SL/TP check after price refresh
       if(S.autoTrade){
         for(const sym of PAIRS){
           const a=S.analyses[sym];
           if(!a||a.signal==="LOADING")continue;
-          if(a.signal==="BUY"&&+a.confidence>20)autoTrade(sym,"BUY");
-          if(a.signal==="SELL"&&+a.confidence>20)autoTrade(sym,"SELL");
+          // HIGH confidence required: >65% for BUY, >55% for SELL (closing is safer)
+          if(a.signal==="BUY"&&+a.confidence>65)autoTrade(sym,"BUY");
+          if(a.signal==="SELL"&&+a.confidence>55)autoTrade(sym,"SELL");
         }
+        const openCount=Object.keys(portfolio.positions).length;
+        addLog(`🔄 Cycle done — ${openCount}/${MAX_POSITIONS} positions open`,"info");
       }
     };
     runCycle();
-    S.botInterval=setInterval(runCycle,30000); // refreshes every 30 seconds
+    S.botInterval=setInterval(runCycle,30000); // signal check every 30s
+    S.slInterval=setInterval(checkStopLosses,10000); // SL/TP check every 10s
   }else{
-    clearInterval(S.botInterval);btn.textContent="START BOT";btn.classList.remove("danger");
+    clearInterval(S.botInterval);clearInterval(S.slInterval);
+    btn.textContent="START BOT";btn.classList.remove("danger");
     badge.textContent="○ IDLE";badge.style.color="var(--muted)";badge.style.borderColor="var(--muted)";badge.style.animation="none";
     addLog("Bot stopped","warn");
   }
@@ -849,23 +902,64 @@ function calcEMA(c,p){const k=2/(p+1);let e=c.slice(0,p).reduce((a,b)=>a+b,0)/p;
 function calcRSI(c,p=14){const r=new Array(p).fill(null);let g=0,l=0;for(let i=1;i<=p;i++){const d=c[i]-c[i-1];d>0?g+=d:l-=d;}let ag=g/p,al=l/p;r.push(al===0?100:100-100/(1+ag/al));for(let i=p+1;i<c.length;i++){const d=c[i]-c[i-1];ag=(ag*(p-1)+Math.max(d,0))/p;al=(al*(p-1)+Math.max(-d,0))/p;r.push(al===0?100:100-100/(1+ag/al));}return r;}
 function calcMACD(c){const ef=calcEMA(c,12),es=calcEMA(c,26);const ml=c.map((_,i)=>ef[i]!=null&&es[i]!=null?ef[i]-es[i]:null);const vm=ml.filter(v=>v!=null);const sr=calcEMA(vm,9);let si=0;const sl=ml.map(v=>v==null?null:sr[si++]??null);return{ml,sl,h:ml.map((v,i)=>v!=null&&sl[i]!=null?v-sl[i]:null)};}
 function computeAI(candles){
-  if(candles.length<50)return{signal:"LOADING",score:0,confidence:0,breakdown:[],patterns:[],rsi:null,macdHist:null,ema20:null,ema50:null};
+  if(candles.length<50)return{signal:"LOADING",score:0,confidence:0,breakdown:[],patterns:[],rsi:null,macdHist:null,ema20:null,ema50:null,ema9:null,slPct:null,tpPct:null};
   const closes=candles.map(c=>c.c),vols=candles.map(c=>c.v);
-  const rsi=calcRSI(closes);const{ml,sl,h}=calcMACD(closes);const e20=calcEMA(closes,20),e50=calcEMA(closes,50);
-  const i=closes.length-1,rv=rsi[i],mv=ml[i],sv=sl[i],hv=h[i],e20v=e20[i],e50v=e50[i],price=closes[i];
+  const rsi=calcRSI(closes);const{ml,sl,h}=calcMACD(closes);
+  const e9=calcEMA(closes,9),e20=calcEMA(closes,20),e50=calcEMA(closes,50);
+  const i=closes.length-1,rv=rsi[i],mv=ml[i],sv=sl[i],hv=h[i];
+  const e9v=e9[i],e20v=e20[i],e50v=e50[i],price=closes[i];
   const avgVol=vols.slice(-20).reduce((a,b)=>a+b,0)/20,vs=vols[i]/avgVol;
   let score=0;const bd=[];
-  if(rv<30){score+=2;bd.push({label:"RSI Oversold",value:rv.toFixed(1),bias:"bull"});}else if(rv>70){score-=2;bd.push({label:"RSI Overbought",value:rv.toFixed(1),bias:"bear"});}else if(rv>55){score+=1;bd.push({label:"RSI Bullish Zone",value:rv.toFixed(1),bias:"bull"});}else{score-=1;bd.push({label:"RSI Bearish Zone",value:rv.toFixed(1),bias:"bear"});}
-  if(mv!=null&&sv!=null){if(mv>sv&&hv>0){score+=2;bd.push({label:"MACD Bull Cross",value:hv.toFixed(4),bias:"bull"});}else if(mv<sv&&hv<0){score-=2;bd.push({label:"MACD Bear Cross",value:hv.toFixed(4),bias:"bear"});}else bd.push({label:"MACD Neutral",value:"—",bias:"neutral"});}
-  if(e20v&&e50v){if(e20v>e50v&&price>e20v){score+=2;bd.push({label:"EMA Uptrend",value:e20v.toFixed(0)+">"+e50v.toFixed(0),bias:"bull"});}else if(e20v<e50v&&price<e20v){score-=2;bd.push({label:"EMA Downtrend",value:e20v.toFixed(0)+"<"+e50v.toFixed(0),bias:"bear"});}else bd.push({label:"EMA Neutral",value:"—",bias:"neutral"});}
-  if(vs>1.5)bd.push({label:"Volume Surge",value:vs.toFixed(1)+"x",bias:score>0?"bull":"bear"});
+
+  // RSI — tighter zones
+  if(rv<35){score+=2;bd.push({label:"RSI Oversold",value:rv.toFixed(1),bias:"bull"});}
+  else if(rv>65){score-=2;bd.push({label:"RSI Overbought",value:rv.toFixed(1),bias:"bear"});}
+  else if(rv>=50&&rv<=65){score+=1;bd.push({label:"RSI Bullish Zone",value:rv.toFixed(1),bias:"bull"});}
+  else{score-=1;bd.push({label:"RSI Bearish Zone",value:rv.toFixed(1),bias:"bear"});}
+
+  // MACD
+  if(mv!=null&&sv!=null){
+    if(mv>sv&&hv>0){score+=2;bd.push({label:"MACD Bull Cross",value:hv.toFixed(4),bias:"bull"});}
+    else if(mv<sv&&hv<0){score-=2;bd.push({label:"MACD Bear Cross",value:hv.toFixed(4),bias:"bear"});}
+    else bd.push({label:"MACD Neutral",value:"—",bias:"neutral"});
+  }
+
+  // EMA triple stack — strongest signal: EMA9 > EMA20 > EMA50 AND price above all
+  if(e9v&&e20v&&e50v){
+    if(e9v>e20v&&e20v>e50v&&price>e9v){
+      score+=3;bd.push({label:"EMA Triple Uptrend ✓",value:e9v.toFixed(0)+">"+e20v.toFixed(0)+">"+e50v.toFixed(0),bias:"bull"});
+    } else if(e9v<e20v&&e20v<e50v&&price<e9v){
+      score-=3;bd.push({label:"EMA Triple Downtrend",value:e9v.toFixed(0)+"<"+e20v.toFixed(0)+"<"+e50v.toFixed(0),bias:"bear"});
+    } else if(e20v>e50v&&price>e20v){
+      score+=1;bd.push({label:"EMA Uptrend",value:e20v.toFixed(0)+">"+e50v.toFixed(0),bias:"bull"});
+    } else if(e20v<e50v&&price<e20v){
+      score-=1;bd.push({label:"EMA Downtrend",value:e20v.toFixed(0)+"<"+e50v.toFixed(0),bias:"bear"});
+    } else bd.push({label:"EMA Neutral",value:"—",bias:"neutral"});
+  }
+
+  // Volume confirmation — only adds to score if trend agrees
+  if(vs>1.5&&score>0){score+=1;bd.push({label:"Volume Confirms Bull",value:vs.toFixed(1)+"x",bias:"bull"});}
+  else if(vs>1.5&&score<0){score-=1;bd.push({label:"Volume Confirms Bear",value:vs.toFixed(1)+"x",bias:"bear"});}
+  else if(vs>1.5)bd.push({label:"Volume Surge",value:vs.toFixed(1)+"x",bias:"neutral"});
+
+  // Candlestick patterns
   const patterns=[];
-  if(candles.length>=3){const[,pv,c]=candles.slice(-3);const bs=Math.abs(c.c-c.o),tr=c.h-c.l;if(tr>0&&bs/tr<0.1)patterns.push({name:"Doji"});const lw=Math.min(c.o,c.c)-c.l,uw=c.h-Math.max(c.o,c.c);if(lw>bs*2&&uw<bs*0.5&&c.c>c.o){score+=1.5;patterns.push({name:"Hammer"});}if(uw>bs*2&&lw<bs*0.5&&c.c<c.o){score-=1.5;patterns.push({name:"Shooting Star"});}if(c.c>c.o&&pv.c<pv.o&&c.o<pv.c&&c.c>pv.o){score+=1.7;patterns.push({name:"Bullish Engulfing"});}if(c.c<c.o&&pv.c>pv.o&&c.o>pv.c&&c.c<pv.o){score-=1.7;patterns.push({name:"Bearish Engulfing"});}}
-  const conf=Math.min(Math.abs(score)/10*100,100);
-  return{signal:score>=3?"BUY":score<=-3?"SELL":"HOLD",score:score.toFixed(2),confidence:conf.toFixed(1),breakdown:bd,patterns,rsi:rv,macdHist:hv,ema20:e20v,ema50:e50v};
+  if(candles.length>=3){
+    const[,pv,c]=candles.slice(-3);
+    const bs=Math.abs(c.c-c.o),tr=c.h-c.l;
+    if(tr>0&&bs/tr<0.1)patterns.push({name:"Doji"});
+    const lw=Math.min(c.o,c.c)-c.l,uw=c.h-Math.max(c.o,c.c);
+    if(lw>bs*2&&uw<bs*0.5&&c.c>c.o){score+=1.5;patterns.push({name:"Hammer"});}
+    if(uw>bs*2&&lw<bs*0.5&&c.c<c.o){score-=1.5;patterns.push({name:"Shooting Star"});}
+    if(c.c>c.o&&pv.c<pv.o&&c.o<pv.c&&c.c>pv.o){score+=2;patterns.push({name:"Bullish Engulfing"});}
+    if(c.c<c.o&&pv.c>pv.o&&c.o>pv.c&&c.c<pv.o){score-=2;patterns.push({name:"Bearish Engulfing"});}
+  }
+
+  // Confidence scaled to max possible score (11)
+  const conf=Math.min(Math.abs(score)/11*100,100);
+  // BUY needs score>=5, SELL needs score<=-5 (was 3 — too easy to trigger)
+  return{signal:score>=5?"BUY":score<=-5?"SELL":"HOLD",score:score.toFixed(2),confidence:conf.toFixed(1),breakdown:bd,patterns,rsi:rv,macdHist:hv,ema9:e9v,ema20:e20v,ema50:e50v,slPct:1.5,tpPct:2.5};
 }
-STOP_LOSS_PCT = 0.015    # 1.5% — exit if price drops 1.5% from entry
-TAKE_PROFIT_PCT = 0.025  # 2.5% — lock profit at 2.5% gain
 </script>
 </body>
 </html>
