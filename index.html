@@ -706,7 +706,7 @@ function renderDetail(){
       </div>
       <div class="panel" style="padding:12px 16px;">
         <div style="font-size:9px;letter-spacing:2px;color:#ffffff;margin-bottom:10px;text-transform:uppercase;font-weight:700;">Signal Summary</div>
-        ${[["RSI",a.rsi?.toFixed(2)??"—"],["MACD Hist",a.macdHist?.toFixed(4)??"—"],["EMA 9",a.ema9?.toFixed(2)??"—"],["EMA 20",a.ema20?.toFixed(2)??"—"],["EMA 50",a.ema50?.toFixed(2)??"—"],["AI Score",a.score],["Confidence",a.confidence+"%"],["Signal Req","≥65% conf"],["Patterns",a.patterns?.map(p=>p.name).join(", ")||"None"]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;"><span style="font-size:11px;color:#ffffff;font-weight:600;">${k}</span><span class="mono" style="font-size:11px;">${v}</span></div>`).join("")}
+        ${[["RSI",a.rsi?.toFixed(2)??"—"],["MACD Hist",a.macdHist?.toFixed(4)??"—"],["EMA 9",a.ema9?.toFixed(2)??"—"],["EMA 20",a.ema20?.toFixed(2)??"—"],["EMA 50",a.ema50?.toFixed(2)??"—"],["AI Score",a.score],["Confidence",a.confidence+"%"],["Signal Req","≥45% conf"],["Patterns",a.patterns?.map(p=>p.name).join(", ")||"None"]].map(([k,v])=>`<div style="display:flex;justify-content:space-between;margin-bottom:7px;"><span style="font-size:11px;color:#ffffff;font-weight:600;">${k}</span><span class="mono" style="font-size:11px;">${v}</span></div>`).join("")}
         <div style="margin-top:14px;">
           <div style="font-size:9px;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">📄 Paper Trade — enter qty in popup</div>
           <div style="display:flex;gap:8px;">
@@ -816,15 +816,16 @@ function toggleBot(){
       await loadData();
       checkStopLosses(); // always run SL/TP check after price refresh
       if(S.autoTrade){
+        const signals=[];
         for(const sym of PAIRS){
           const a=S.analyses[sym];
           if(!a||a.signal==="LOADING")continue;
-          // HIGH confidence required: >65% for BUY, >55% for SELL (closing is safer)
-          if(a.signal==="BUY"&&+a.confidence>65)autoTrade(sym,"BUY");
-          if(a.signal==="SELL"&&+a.confidence>55)autoTrade(sym,"SELL");
+          signals.push(`${LABELS[sym]}:${a.signal}(${a.confidence}%)`);
+          if(a.signal==="BUY"&&+a.confidence>45)autoTrade(sym,"BUY");
+          if(a.signal==="SELL"&&+a.confidence>40)autoTrade(sym,"SELL");
         }
         const openCount=Object.keys(portfolio.positions).length;
-        addLog(`🔄 Cycle done — ${openCount}/${MAX_POSITIONS} positions open`,"info");
+        addLog(`🔄 Cycle done — ${openCount}/${MAX_POSITIONS} open | ${signals.join(" · ")}`,"info");
       }
     };
     runCycle();
@@ -966,8 +967,8 @@ function computeAI(candles){
 
   // Confidence scaled to max possible score (11)
   const conf=Math.min(Math.abs(score)/11*100,100);
-  // BUY needs score>=5, SELL needs score<=-5 (was 3 — too easy to trigger)
-  return{signal:score>=5?"BUY":score<=-5?"SELL":"HOLD",score:score.toFixed(2),confidence:conf.toFixed(1),breakdown:bd,patterns,rsi:rv,macdHist:hv,ema9:e9v,ema20:e20v,ema50:e50v,slPct:1.5,tpPct:2.5};
+  // BUY needs score>=4, SELL needs score<=-4 | confidence>45% for BUY, >40% SELL
+  return{signal:score>=4?"BUY":score<=-4?"SELL":"HOLD",score:score.toFixed(2),confidence:conf.toFixed(1),breakdown:bd,patterns,rsi:rv,macdHist:hv,ema9:e9v,ema20:e20v,ema50:e50v,slPct:1.5,tpPct:2.5};
 }
 </script>
 </body>
