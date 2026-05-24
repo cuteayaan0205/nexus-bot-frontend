@@ -196,8 +196,8 @@ select option{background:#0a1520;}
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span style="font-size:9px;letter-spacing:2px;color:#ffffff;text-transform:uppercase;font-weight:700;">Watchlist</span>
           <select id="interval-select" onchange="onIntervalChange()" style="width:auto;font-size:10px;padding:2px 6px;">
-            <option value="1m">1m</option><option value="3m">3m</option><option value="5m">5m</option>
-            <option value="1m" selected>1m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
+            <option value="1m" selected>1m</option><option value="3m">3m</option><option value="5m">5m</option>
+            <option value="15m">15m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
           </select>
         </div>
         <!-- Coin Search -->
@@ -227,7 +227,7 @@ select option{background:#0a1520;}
       <div class="portfolio-card" style="animation:glow 3s ease infinite;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <div>
-            <div style="font-size:10px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Paper Trading Balance</div>
+            <div style="font-size:10px;color:#ffffff;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;font-weight:700;">Portfolio Value (Cash + Positions)</div>
             <div class="mono" style="font-size:32px;font-weight:700;color:var(--accent);" id="portfolio-balance">$10,000.00</div>
           </div>
           <div style="text-align:right;">
@@ -394,12 +394,20 @@ function resetPortfolio(){
 }
 
 function updatePortfolioUI(){
-  const pnl=portfolio.balance-portfolio.startBalance;
-  document.getElementById("portfolio-balance").textContent="$"+portfolio.balance.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+  // Total P&L = realized (balance vs start) + unrealized (open positions)
+  const unrealizedTotal=Object.entries(portfolio.positions).reduce((sum,[sym,pos])=>{
+    const cur=S.tickers[sym]?.lastPrice||pos.entryPrice;
+    return sum+(pos.side==="BUY"?(cur-pos.entryPrice)*pos.qty:(pos.entryPrice-cur)*pos.qty);
+  },0);
+  const realizedPnl=portfolio.balance-portfolio.startBalance;
+  const pnl=realizedPnl+unrealizedTotal;
+  const portfolioValue=portfolio.balance+Object.values(portfolio.positions).reduce((s,p)=>s+(p.allocatedCost||p.entryPrice*p.qty),0);
+  document.getElementById("portfolio-balance").textContent="$"+portfolioValue.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   const pnlEl=document.getElementById("portfolio-pnl");
   pnlEl.textContent=(pnl>=0?"+$":"-$")+Math.abs(pnl).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
   pnlEl.style.color=pnl>=0?"var(--bull)":"var(--bear)";
-  const total=portfolio.trades.length;
+  const closedTrades=portfolio.trades.filter(t=>t.type==="close");
+  const total=closedTrades.length;
   document.getElementById("stat-total").textContent=total;
   document.getElementById("stat-win").textContent=portfolio.wins;
   document.getElementById("stat-loss").textContent=portfolio.losses;
@@ -435,11 +443,17 @@ function renderPositions(){
           <span style="font-weight:700;color:${pos.side==="BUY"?"var(--bull)":"var(--bear)"};">${pos.side} ${LABELS[sym]||sym}</span>
           <span class="mono" style="color:${pnl>=0?"var(--bull)":"var(--bear)"};">${pnl>=0?"+":""}\$${pnl.toFixed(2)} (${pnlPct>=0?"+":""}${pnlPct.toFixed(2)}%)</span>
         </div>
-        <div style="display:flex;gap:16px;">
+        <div style="display:flex;gap:16px;flex-wrap:wrap;">
           <span style="font-size:10px;color:#8ab4c8;">Entry: <span class="mono">$${pos.entryPrice.toFixed(2)}</span></span>
           <span style="font-size:10px;color:#8ab4c8;">Current: <span class="mono">$${currentPrice.toFixed(2)}</span></span>
           <span style="font-size:10px;color:#8ab4c8;">Qty: <span class="mono">${pos.qty}</span></span>
+          <span style="font-size:10px;color:#8ab4c8;">Alloc: <span class="mono">$${(pos.allocatedCost||pos.entryPrice*pos.qty).toFixed(2)}</span></span>
         </div>
+        ${pos.stopLoss?`<div style="display:flex;gap:16px;margin-top:4px;">
+          <span style="font-size:10px;color:var(--bear);">🛑 SL: <span class="mono">$${pos.stopLoss.toFixed(2)}</span></span>
+          <span style="font-size:10px;color:var(--bull);">🎯 TP: <span class="mono">$${pos.takeProfit.toFixed(2)}</span></span>
+          <span style="font-size:10px;color:var(--muted);">Risk -1.5% | Reward +2.5%</span>
+        </div>`:""}
       </div>
       <button onclick="closePosition('${sym}')" style="font-size:10px;padding:4px 10px;cursor:pointer;border:1px solid var(--bear);background:rgba(255,61,90,0.08);color:var(--bear);border-radius:2px;font-family:'Rajdhani',sans-serif;font-weight:700;margin-left:10px;">CLOSE</button>
     </div>`;
@@ -456,7 +470,8 @@ function renderTradeHistory(){
       <span style="font-size:11px;flex:1;">${LABELS[t.symbol]||t.symbol}</span>
       <span class="mono" style="font-size:10px;color:#8ab4c8;">qty:${t.qty}</span>
       <span class="mono" style="font-size:10px;margin-left:8px;">$${t.price.toFixed(2)}</span>
-      ${t.pnl!==undefined?`<span class="mono" style="font-size:10px;margin-left:8px;color:${t.pnl>=0?"var(--bull)":"var(--bear)"};">${t.pnl>=0?"+":""}$${t.pnl.toFixed(2)}</span>`:""}
+      ${t.pnl!==undefined?`<span class="mono" style="font-size:10px;margin-left:8px;color:${t.pnl>=0?"var(--bull)":"var(--bear)"};">${t.pnl>=0?"+":""}$${t.pnl.toFixed(2)}</span>
+      <span class="mono" style="font-size:9px;margin-left:4px;color:${t.pnl>=0?"var(--bull)":"var(--bear)"};">(${t.pnl>=0?"+":""}${(t.pnl/(t.price*t.qty)*100).toFixed(2)}%)</span>`:""}
       <span style="font-size:9px;padding:1px 6px;border-radius:2px;margin-left:6px;background:rgba(0,232,150,0.1);color:var(--bull);">FILLED</span>
     </div>`).join("");
 }
@@ -466,12 +481,14 @@ function closePosition(sym){
   if(!pos)return;
   const currentPrice=S.tickers[sym]?.lastPrice||pos.entryPrice;
   const pnl=pos.side==="BUY"?(currentPrice-pos.entryPrice)*pos.qty:(pos.entryPrice-currentPrice)*pos.qty;
-  portfolio.balance+=pnl;
+  // Restore original allocated cost + profit/loss back to balance
+  const costToReturn = pos.allocatedCost || (pos.entryPrice * pos.qty);
+  portfolio.balance += costToReturn + pnl;
   if(pnl>=0)portfolio.wins++;else portfolio.losses++;
   portfolio.trades.push({symbol:sym,side:pos.side==="BUY"?"SELL":"BUY",qty:pos.qty,price:currentPrice,time:Date.now(),pnl,type:"close"});
   delete portfolio.positions[sym];
   savePortfolio();updatePortfolioUI();
-  addLog(`✓ Closed ${LABELS[sym]} position — P&L: ${pnl>=0?"+":""}$${pnl.toFixed(2)}`,pnl>=0?"success":"warn");
+  addLog(`✓ Closed ${LABELS[sym]} — P&L: ${pnl>=0?"+":""}$${pnl.toFixed(2)} | Balance: $${portfolio.balance.toFixed(2)}`,pnl>=0?"success":"warn");
 }
 
 // ── Modal ──────────────────────────────────────────────────────────────────
