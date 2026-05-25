@@ -947,7 +947,7 @@ function checkStopLosses(){
   }
 }
 
-function toggleBot(){
+async function toggleBot(){
   S.botRunning=!S.botRunning;
   const btn=document.getElementById("start-btn"),badge=document.getElementById("bot-badge");
   if(S.botRunning){
