@@ -148,6 +148,15 @@ select option{background:#0a1520;}
   </div>
 </div>
 
+<!-- GAINERS BANNER -->
+<div id="gainers-banner" style="background:rgba(0,232,150,0.05);border-bottom:1px solid rgba(0,232,150,0.15);padding:5px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+  <div id="gainers-badge" style="font-size:11px;font-family:'Share Tech Mono',monospace;">🔥 <strong>Top Gainers:</strong> <span style="color:var(--muted);">Start bot to load...</span></div>
+  <div style="display:flex;align-items:center;gap:12px;font-size:10px;font-family:'Share Tech Mono',monospace;color:var(--muted);">
+    <span>📌 Core 50% &nbsp;|&nbsp; 🔥 Gainers 30% &nbsp;|&nbsp; 🛡 Buffer 20%</span>
+    <span id="alloc-status" style="color:var(--accent);">—</span>
+  </div>
+</div>
+
 <!-- TRADE MODAL -->
 <div id="overlay">
   <div id="modal">
@@ -441,6 +450,7 @@ function renderPositions(){
       <div style="flex:1;">
         <div style="display:flex;justify-content:space-between;margin-bottom:4px;">
           <span style="font-weight:700;color:${pos.side==="BUY"?"var(--bull)":"var(--bear)"};">${pos.side} ${LABELS[sym]||sym}</span>
+          ${pos.slot?`<span style="font-size:9px;margin-left:6px;padding:1px 6px;border-radius:2px;background:${pos.slot.includes("GAINER")?"rgba(0,232,150,0.1)":"rgba(0,255,224,0.1)"};color:${pos.slot.includes("GAINER")?"var(--bull)":"var(--accent)"};">${pos.slot}</span>`:""}
           <span class="mono" style="color:${pnl>=0?"var(--bull)":"var(--bear)"};">${pnl>=0?"+":""}\$${pnl.toFixed(2)} (${pnlPct>=0?"+":""}${pnlPct.toFixed(2)}%)</span>
         </div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;">
@@ -749,22 +759,131 @@ function miniChart(candles,width,height){
 }
 
 // ── Risk Management Constants ──────────────────────────────────────────────
-const STOP_LOSS_PCT  = 0.015; // 1.5% — hard stop loss
-const TAKE_PROFIT_PCT = 0.025; // 2.5% — take profit target
-const MAX_POSITIONS  = 5;     // max simultaneous open trades (all 5 pairs)
+const STOP_LOSS_PCT   = 0.015; // 1.5% hard stop loss
+const TAKE_PROFIT_PCT = 0.025; // 2.5% take profit
+const CORE_PAIRS      = ["BTCUSDT","ETHUSDT","BNBUSDT","SOLUSDT","XRPUSDT"];
+const MAX_CORE        = 5;    // 5 core coins × 10% = 50%
+const MAX_GAINER      = 3;    // top 3 gainers × 10% = 30%
+const BUFFER_PCT      = 0.20; // 20% always kept as buffer — never traded
+const ALLOC_PER_TRADE = 0.10; // 10% of portfolio per position
+
+// ── Top Gainers state ──────────────────────────────────────────────────────
+let topGainers = []; // [{symbol, changePercent, label}]
+let gainersRefreshInterval = null;
+
+// ── Fetch Top 3 Gainers from Binance ──────────────────────────────────────
+async function fetchTopGainers(){
+  try{
+    const r = await fetch("https://data-api.binance.vision/api/v3/ticker/24hr");
+    if(!r.ok) throw new Error("failed");
+    const data = await r.json();
+    // Filter: USDT pairs only, volume > $1M, exclude stablecoins & core pairs
+    const stables = ["USDCUSDT","BUSDUSDT","TUSDUSDT","USDTUSDT","DAIUSDT","FRAXUSDT","EURUSDT","GBPUSDT"];
+    const candidates = data
+      .filter(t =>
+        t.symbol.endsWith("USDT") &&
+        !stables.includes(t.symbol) &&
+        !CORE_PAIRS.includes(t.symbol) &&
+        parseFloat(t.quoteVolume) > 1000000 &&  // min $1M 24h volume
+        parseFloat(t.priceChangePercent) > 0      // only positive gainers
+      )
+      .sort((a,b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent))
+      .slice(0, 3);
+
+    const prev = topGainers.map(g=>g.symbol);
+    topGainers = candidates.map(t=>({
+      symbol: t.symbol,
+      changePercent: parseFloat(t.priceChangePercent),
+      label: t.symbol.replace("USDT","/USDT"),
+      price: parseFloat(t.lastPrice),
+      volume: parseFloat(t.quoteVolume)
+    }));
+
+    // Add new gainers to PAIRS/LABELS if not already there
+    for(const g of topGainers){
+      if(!PAIRS.includes(g.symbol)){
+        PAIRS.push(g.symbol);
+        LABELS[g.symbol] = g.label;
+        QUICK[g.symbol] = ["1","5","10"];
+        // Fetch klines for new gainer
+        try{
+          const r2 = await fetch(`${BACKEND}/klines/${g.symbol}?interval=${S.interval}&limit=100`);
+          if(r2.ok){const k=await r2.json();S.candles[g.symbol]=k;S.analyses[g.symbol]=computeAI(k);}
+        }catch(e){}
+        // Fetch ticker price
+        try{
+          const r3 = await fetch(`${BACKEND}/ticker/${g.symbol}`);
+          if(r3.ok){const t=await r3.json();S.tickers[g.symbol]={lastPrice:parseFloat(t.lastPrice),priceChangePercent:parseFloat(t.priceChangePercent),highPrice:parseFloat(t.highPrice),lowPrice:parseFloat(t.lowPrice),volume:parseFloat(t.volume)};}
+        }catch(e){}
+      }
+    }
+
+    // Remove old gainers that are no longer in top 3 (and have no open position)
+    for(const old of prev){
+      if(!topGainers.find(g=>g.symbol===old) && !portfolio.positions[old] && !CORE_PAIRS.includes(old)){
+        const idx = PAIRS.indexOf(old);
+        if(idx > -1){ PAIRS.splice(idx,1); delete LABELS[old]; }
+        addLog(`📊 Gainer removed from watchlist: ${old}`,"info");
+      }
+    }
+
+    updateGainersBadge();
+    renderPairList();
+    addLog(`🔥 Top Gainers: ${topGainers.map(g=>g.label+" +"+g.changePercent.toFixed(2)+"%").join(" | ")}`,"success");
+  }catch(e){
+    addLog("⚠ Gainers fetch failed: "+e.message,"warn");
+  }
+}
+
+function updateGainersBadge(){
+  const el = document.getElementById("gainers-badge");
+  if(el){
+    if(!topGainers.length){ el.innerHTML="🔥 <strong>Top Gainers:</strong> <span style='color:var(--muted)'>Loading...</span>"; }
+    else { el.innerHTML = "🔥 <strong>Top Gainers:</strong> " + topGainers.map(g=>
+      `<span style="color:var(--bull);margin-left:8px;">🔥${g.label} <strong>+${g.changePercent.toFixed(2)}%</strong> <span style='color:var(--muted);font-size:9px;'>Vol:$${(g.volume/1e6).toFixed(1)}M</span></span>`
+    ).join(""); }
+  }
+  // Update allocation status
+  const as = document.getElementById("alloc-status");
+  if(as){
+    const total=getPortfolioTotal();
+    const coreVal=Object.keys(portfolio.positions).filter(s=>CORE_PAIRS.includes(s)).reduce((sum,s)=>sum+(portfolio.positions[s].allocatedCost||0),0);
+    const gainVal=Object.keys(portfolio.positions).filter(s=>isGainerSlot(s)).reduce((sum,s)=>sum+(portfolio.positions[s].allocatedCost||0),0);
+    const bufPct=(portfolio.balance/total*100).toFixed(0);
+    as.innerHTML=`Core: <span style='color:var(--bull)'>${(coreVal/total*100).toFixed(0)}%</span> | Gainers: <span style='color:var(--bull)'>${(gainVal/total*100).toFixed(0)}%</span> | Buffer: <span style='color:var(--accent3)'>${bufPct}%</span>`;
+  }
+}
+
+// ── Capital allocation helper ──────────────────────────────────────────────
+function getPortfolioTotal(){
+  return portfolio.balance + Object.values(portfolio.positions)
+    .reduce((s,p)=>s+(p.allocatedCost||p.entryPrice*p.qty),0);
+}
+
+function isGainerSlot(sym){
+  return topGainers.some(g=>g.symbol===sym);
+}
+
+function corePositionCount(){
+  return Object.keys(portfolio.positions).filter(s=>CORE_PAIRS.includes(s)).length;
+}
+
+function gainerPositionCount(){
+  return Object.keys(portfolio.positions).filter(s=>isGainerSlot(s)).length;
+}
 
 // ── Auto trade ─────────────────────────────────────────────────────────────
 function autoTrade(sym,side){
-  const price=S.tickers[sym]?.lastPrice||0;
-  if(!price)return;
-  // Allocate 10% of total balance per trade (dynamic qty based on price)
-  const allocAmount = portfolio.balance * 0.10;
-  const existingPos=portfolio.positions[sym];
+  const price = S.tickers[sym]?.lastPrice||0;
+  if(!price) return;
+  const existingPos = portfolio.positions[sym];
+  const total = getPortfolioTotal();
+  const bufferFloor = total * BUFFER_PCT; // 20% must stay untouched
 
-  // If position open — check SL/TP first, then signal-based close
+  // ── Handle existing position ───────────────────────────────────────────
   if(existingPos){
     if(existingPos.side==="BUY"){
-      const pnlPct=(price-existingPos.entryPrice)/existingPos.entryPrice;
+      const pnlPct = (price-existingPos.entryPrice)/existingPos.entryPrice;
       if(pnlPct<=-STOP_LOSS_PCT){
         closePosition(sym);
         addLog(`🛑 STOP LOSS hit ${LABELS[sym]} — ${(pnlPct*100).toFixed(2)}% loss`,"error");
@@ -783,35 +902,45 @@ function autoTrade(sym,side){
     return;
   }
 
-  // No position — only open new BUY if under MAX_POSITIONS
+  // ── Open new BUY position ──────────────────────────────────────────────
   if(side==="BUY"){
-    const openCount=Object.keys(portfolio.positions).length;
-    if(openCount>=MAX_POSITIONS){
-      addLog(`⚠ Max ${MAX_POSITIONS} positions reached — skipping ${LABELS[sym]}`,"warn");
+    const isCore   = CORE_PAIRS.includes(sym);
+    const isGainer = isGainerSlot(sym);
+    if(!isCore && !isGainer){ return; } // only trade core or current top gainers
+
+    // Slot limits
+    if(isCore   && corePositionCount()   >= MAX_CORE)  { addLog(`⚠ Core slots full (${MAX_CORE}/5) — skipping ${LABELS[sym]}`,"warn"); return; }
+    if(isGainer && gainerPositionCount() >= MAX_GAINER){ addLog(`⚠ Gainer slots full (${MAX_GAINER}/3) — skipping ${LABELS[sym]}`,"warn"); return; }
+
+    // 10% of total portfolio per trade, but never breach 20% buffer
+    const cost = total * ALLOC_PER_TRADE;
+    const availableAfterBuffer = portfolio.balance - bufferFloor;
+    if(availableAfterBuffer < cost){
+      addLog(`🛡 Buffer protection: need $${cost.toFixed(2)} but only $${availableAfterBuffer.toFixed(2)} above buffer`,"warn");
       return;
     }
-    const totalBalance = portfolio.balance + Object.values(portfolio.positions).reduce((s,p)=>s+(p.entryPrice*p.qty),0);
-    const cost = Math.min(allocAmount, totalBalance * 0.10); // 10% of total portfolio
-    if(cost > portfolio.balance){addLog(`⚠ Insufficient balance for ${LABELS[sym]} (need $${cost.toFixed(2)})`,"warn");return;}
-    const qtyN = parseFloat((cost / price).toFixed(6));
-    const sl=(price*(1-STOP_LOSS_PCT));
-    const tp=(price*(1+TAKE_PROFIT_PCT));
-    portfolio.balance-=cost;
-    portfolio.positions[sym]={side:"BUY",qty:qtyN,entryPrice:price,time:Date.now(),unrealizedPnL:0,stopLoss:sl,takeProfit:tp,allocatedCost:cost};
-    portfolio.trades.push({symbol:sym,side:"BUY",qty:qtyN,price,time:Date.now(),type:"open"});
-    savePortfolio();updatePortfolioUI();
-    addLog(`🤖 AUTO BUY ${LABELS[sym]} qty:${qtyN} @ $${price.toFixed(2)} | Alloc:$${cost.toFixed(2)} (10%) | SL:$${sl.toFixed(2)} TP:$${tp.toFixed(2)}`,"success");
+
+    const qtyN = parseFloat((cost/price).toFixed(6));
+    const sl   = price*(1-STOP_LOSS_PCT);
+    const tp   = price*(1+TAKE_PROFIT_PCT);
+    const slot = isGainer ? "🔥GAINER" : "📌CORE";
+
+    portfolio.balance -= cost;
+    portfolio.positions[sym] = {side:"BUY",qty:qtyN,entryPrice:price,time:Date.now(),unrealizedPnL:0,stopLoss:sl,takeProfit:tp,allocatedCost:cost,slot};
+    portfolio.trades.push({symbol:sym,side:"BUY",qty:qtyN,price,time:Date.now(),type:"open",slot});
+    savePortfolio(); updatePortfolioUI();
+    addLog(`🤖 ${slot} BUY ${LABELS[sym]} qty:${qtyN} @ $${price.toFixed(2)} | $${cost.toFixed(2)} (10%) | SL:$${sl.toFixed(2)} TP:$${tp.toFixed(2)}`,"success");
   }
 }
 
 // ── SL/TP monitor — runs every 10s when bot is live ────────────────────────
 function checkStopLosses(){
   for(const sym of Object.keys(portfolio.positions)){
-    const pos=portfolio.positions[sym];
-    if(!pos||pos.side!=="BUY")continue;
-    const price=S.tickers[sym]?.lastPrice;
-    if(!price)continue;
-    const pnlPct=(price-pos.entryPrice)/pos.entryPrice;
+    const pos = portfolio.positions[sym];
+    if(!pos||pos.side!=="BUY") continue;
+    const price = S.tickers[sym]?.lastPrice;
+    if(!price) continue;
+    const pnlPct = (price-pos.entryPrice)/pos.entryPrice;
     if(pnlPct<=-STOP_LOSS_PCT){
       closePosition(sym);
       addLog(`🛑 STOP LOSS triggered ${LABELS[sym]} @ $${price.toFixed(2)} — ${(pnlPct*100).toFixed(2)}%`,"error");
@@ -828,28 +957,41 @@ function toggleBot(){
   if(S.botRunning){
     btn.textContent="STOP BOT";btn.classList.add("danger");
     badge.textContent="● LIVE";badge.style.color="var(--bull)";badge.style.borderColor="var(--bull)";badge.style.animation="pulse 2s infinite";
-    addLog("🤖 Bot started — paper trading mode","success");
+    addLog("🤖 Bot started — 50% Core | 30% Gainers | 20% Buffer","success");
+    // Fetch top gainers immediately on start
+    await fetchTopGainers();
     const runCycle=async()=>{
       await loadData();
-      checkStopLosses(); // always run SL/TP check after price refresh
+      checkStopLosses();
       if(S.autoTrade){
         const signals=[];
-        for(const sym of PAIRS){
+        // Trade core pairs
+        for(const sym of CORE_PAIRS){
           const a=S.analyses[sym];
           if(!a||a.signal==="LOADING")continue;
           signals.push(`${LABELS[sym]}:${a.signal}(${a.confidence}%)`);
           if(a.signal==="BUY"&&+a.confidence>45)autoTrade(sym,"BUY");
           if(a.signal==="SELL"&&+a.confidence>40)autoTrade(sym,"SELL");
         }
-        const openCount=Object.keys(portfolio.positions).length;
-        addLog(`🔄 Cycle done — ${openCount}/${MAX_POSITIONS} open | ${signals.join(" · ")}`,"info");
+        // Trade top gainers
+        for(const g of topGainers){
+          const a=S.analyses[g.symbol];
+          if(!a||a.signal==="LOADING")continue;
+          signals.push(`🔥${g.label}:${a.signal}(${a.confidence}%)`);
+          if(a.signal==="BUY"&&+a.confidence>45)autoTrade(g.symbol,"BUY");
+          if(a.signal==="SELL"&&+a.confidence>40)autoTrade(g.symbol,"SELL");
+        }
+        const coreOpen=corePositionCount(), gainOpen=gainerPositionCount();
+        const total=getPortfolioTotal(), buffer=(portfolio.balance/total*100).toFixed(1);
+        addLog(`🔄 Core:${coreOpen}/5 | Gainers:${gainOpen}/3 | Buffer:${buffer}% | ${signals.slice(0,4).join(" · ")}`,"info");
       }
     };
     runCycle();
-    S.botInterval=setInterval(runCycle,30000); // signal check every 30s
-    S.slInterval=setInterval(checkStopLosses,10000); // SL/TP check every 10s
+    S.botInterval=setInterval(runCycle,30000);
+    S.slInterval=setInterval(checkStopLosses,10000);
+    gainersRefreshInterval=setInterval(fetchTopGainers,300000); // refresh gainers every 5 min
   }else{
-    clearInterval(S.botInterval);clearInterval(S.slInterval);
+    clearInterval(S.botInterval);clearInterval(S.slInterval);clearInterval(gainersRefreshInterval);
     btn.textContent="START BOT";btn.classList.remove("danger");
     badge.textContent="○ IDLE";badge.style.color="var(--muted)";badge.style.borderColor="var(--muted)";badge.style.animation="none";
     addLog("Bot stopped","warn");
