@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' https: data: blob:;">
 <title>NEXUS BOT — AI Crypto Trader</title>
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet"/>
 <style>
@@ -106,7 +105,7 @@ select option{background:#0a1520;}
     </div>
     <label style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;display:block;margin-bottom:6px;text-align:left;">Enter Your Name</label>
     <input type="text" class="login-input" id="login-name" placeholder="e.g. Afzal, Rahul, Sara..." maxlength="20"/>
-    <button class="login-btn" onclick="loginUser()">START TRADING →</button>
+    <button class="login-btn" id="login-btn">START TRADING →</button>
     <div id="existing-users-section" style="display:none;">
       <div style="font-size:9px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">— or continue as —</div>
       <div class="login-users" id="existing-users-list"></div>
@@ -125,9 +124,9 @@ select option{background:#0a1520;}
     <span class="paper-badge">📄 PAPER TRADING</span>
     <span id="user-display" style="font-size:10px;color:var(--accent);font-family:'Share Tech Mono',monospace;"></span>
     <div style="display:flex;gap:5px;">
-      <button class="btn active" id="tab-dashboard-btn" onclick="switchTab('dashboard')">DASHBOARD</button>
-      <button class="btn" id="tab-portfolio-btn" onclick="switchTab('portfolio')">PORTFOLIO</button>
-      <button class="btn" id="tab-logs-btn" onclick="switchTab('logs')">LOGS</button>
+      <button class="btn active" id="tab-dashboard-btn">DASHBOARD</button>
+      <button class="btn" id="tab-portfolio-btn">PORTFOLIO</button>
+      <button class="btn" id="tab-logs-btn">LOGS</button>
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:8px;">
@@ -135,9 +134,9 @@ select option{background:#0a1520;}
     <div class="mono" id="bot-badge" style="font-size:9px;padding:3px 8px;border:1px solid var(--muted);border-radius:2px;color:var(--muted);">○ IDLE</div>
     <div style="display:flex;align-items:center;gap:6px;">
       <span style="font-size:9px;color:var(--muted);letter-spacing:1px;">AUTO</span>
-      <div class="toggle" id="auto-toggle" onclick="toggleAuto()" title="Enable Auto-Trading"><div class="toggle-knob"></div></div>
+      <div class="toggle" id="auto-toggle" title="Enable Auto-Trading"><div class="toggle-knob"></div></div>
     </div>
-    <button class="btn" id="start-btn" onclick="toggleBot()">START BOT</button>
+    <button class="btn" id="start-btn">START BOT</button>
   </div>
 </div>
 
@@ -169,8 +168,8 @@ select option{background:#0a1520;}
 
     <!-- Order Type Toggle -->
     <div style="display:flex;gap:6px;margin-bottom:14px;">
-      <button id="btn-market" onclick="setOrderType('MARKET')" style="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:2px solid var(--accent);background:rgba(0,255,224,0.15);color:var(--accent);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;">MARKET</button>
-      <button id="btn-limit" onclick="setOrderType('LIMIT')" style="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;">LIMIT</button>
+      <button id="btn-market" id="btn-market-click" style="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:2px solid var(--accent);background:rgba(0,255,224,0.15);color:var(--accent);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;">MARKET</button>
+      <button id="btn-limit" id="btn-limit-click" style="flex:1;padding:6px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:3px;font-family:'Rajdhani',sans-serif;letter-spacing:1px;">LIMIT</button>
     </div>
 
     <!-- Limit Price (hidden for market orders) -->
@@ -188,10 +187,10 @@ select option{background:#0a1520;}
     <div id="m-vol-info" style="display:flex;gap:8px;margin-bottom:14px;"></div>
 
     <div class="m-actions">
-      <button class="m-buy" onclick="doTrade('BUY')">▲ BUY</button>
-      <button class="m-sell" onclick="doTrade('SELL')">▼ SELL</button>
+      <button class="m-buy" id="modal-buy-btn">▲ BUY</button>
+      <button class="m-sell" id="modal-sell-btn">▼ SELL</button>
     </div>
-    <div class="m-cancel" onclick="closeModal()">✕ Cancel</div>
+    <div class="m-cancel" id="modal-cancel-btn">✕ Cancel</div>
     <div class="m-status" id="m-status"></div>
   </div>
 </div>
@@ -205,16 +204,14 @@ select option{background:#0a1520;}
       <div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span style="font-size:9px;letter-spacing:2px;color:#ffffff;text-transform:uppercase;font-weight:700;">Watchlist</span>
-          <select id="interval-select" onchange="onIntervalChange()" style="width:auto;font-size:10px;padding:2px 6px;">
+          <select id="interval-select" style="width:auto;font-size:10px;padding:2px 6px;">
             <option value="1m" selected>1m</option><option value="3m">3m</option><option value="5m">5m</option>
             <option value="15m">15m</option><option value="1h">1h</option><option value="4h">4h</option><option value="1d">1d</option>
           </select>
         </div>
         <!-- Coin Search -->
         <div style="position:relative;margin-bottom:8px;">
-          <input id="coin-search" type="text" placeholder="🔍 Search any coin..." oninput="searchCoins(this.value)" autocomplete="off"
-            style="width:100%;box-sizing:border-box;background:rgba(0,255,224,0.05);border:1px solid var(--border);border-radius:4px;padding:7px 10px;font-size:11px;color:var(--text);outline:none;"
-            onfocus="this.style.borderColor='var(--accent)'" onblur="setTimeout(()=>{const d=document.getElementById('coin-dropdown');if(d)d.style.display='none';},200);this.style.borderColor='var(--border)'"/>
+          <input id="coin-search" type="text" placeholder="🔍 Search any coin..." autocomplete="off" style="width:100%;box-sizing:border-box;background:rgba(0,255,224,0.05);border:1px solid var(--border);border-radius:4px;padding:7px 10px;font-size:11px;color:var(--text);outline:none;"/>
           <div id="coin-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--panel);border:1px solid var(--border);border-radius:4px;z-index:999;max-height:200px;overflow-y:auto;box-shadow:0 4px 16px rgba(0,0,0,0.5);"></div>
         </div>
         <div id="pair-list">
@@ -252,8 +249,8 @@ select option{background:#0a1520;}
           <div class="stat-box"><div class="stat-label">Win Rate</div><div class="stat-val" id="stat-rate">0%</div></div>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;">
-          <button class="btn" onclick="resetPortfolio()" style="font-size:10px;">Reset Portfolio</button>
-          <button class="btn" onclick="logoutUser()" style="font-size:10px;border-color:var(--muted);color:var(--muted);">Switch User</button>
+          <button class="btn" id="reset-portfolio-btn" style="font-size:10px;">Reset Portfolio</button>
+          <button class="btn" id="logout-btn" style="font-size:10px;border-color:var(--muted);color:var(--muted);">Switch User</button>
         </div>
       </div>
 
@@ -280,7 +277,7 @@ select option{background:#0a1520;}
     <div class="panel" style="padding:16px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <span style="font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;" id="log-count">System Log (0)</span>
-        <button class="btn" onclick="clearLogs()" style="font-size:9px;padding:2px 10px;">Clear</button>
+        <button class="btn" id="clear-logs-btn" style="font-size:9px;padding:2px 10px;">Clear</button>
       </div>
       <div id="log-list" style="max-height:calc(100vh - 220px);overflow-y:auto;"><div style="color:var(--muted);font-size:11px;">No entries yet.</div></div>
     </div>
@@ -316,9 +313,7 @@ window.onload=()=>{
 function showLoginScreen(){
   document.getElementById("login-screen").classList.remove("hidden");
   loadExistingUsers();
-  document.getElementById("login-name").addEventListener("keypress",function(e){
-    if(e.key==="Enter")loginUser();
-  });
+  // Enter key handled in DOMContentLoaded
 }
 
 function getAllUsers(){
@@ -342,7 +337,7 @@ function loadExistingUsers(){
       </div>
       <div style="text-align:right;">
         <div style="font-size:12px;color:${pnl>=0?"var(--bull)":"var(--bear)"};">${pnl>=0?"+":""}$${pnl.toFixed(2)}</div>
-        <div onclick="event.stopPropagation();deleteUser('${name}')" style="font-size:9px;color:var(--bear);margin-top:2px;cursor:pointer;">✕ delete</div>
+        <div data-name="${name}" data-action="deleteUser" style="font-size:9px;color:var(--bear);margin-top:2px;cursor:pointer;">✕ delete</div>
       </div>
     </div>`;
   }).join("");
@@ -466,7 +461,7 @@ function renderPositions(){
           <span style="font-size:10px;color:var(--muted);">Risk -1.5% | Reward +2.5%</span>
         </div>`:""}
       </div>
-      <button onclick="closePosition('${sym}')" style="font-size:10px;padding:4px 10px;cursor:pointer;border:1px solid var(--bear);background:rgba(255,61,90,0.08);color:var(--bear);border-radius:2px;font-family:'Rajdhani',sans-serif;font-weight:700;margin-left:10px;">CLOSE</button>
+      <button data-sym="${sym}" data-action="closePosition" style="font-size:10px;padding:4px 10px;cursor:pointer;border:1px solid var(--bear);background:rgba(255,61,90,0.08);color:var(--bear);border-radius:2px;font-family:'Rajdhani',sans-serif;font-weight:700;margin-left:10px;">CLOSE</button>
     </div>`;
   }).join("");
 }
@@ -546,7 +541,7 @@ function openModal(sym){
 
   // Quick qty buttons
   document.getElementById("q-btns").innerHTML=(QUICK[sym]||["1","5","10"]).map(q=>
-    `<button class="q-btn" onclick="document.getElementById('m-qty').value='${q}'">${q}</button>`
+    `<button class="q-btn" data-qty="${q}">${q}</button>`
   ).join("");
 
   // Show buy/sell volume info
@@ -667,7 +662,7 @@ function renderPairList(){
     const price=t?.lastPrice||0,chg=t?.priceChangePercent||0,bull=chg>=0;
     const sig=a?.signal||"LOADING",sc=sig==="BUY"?"var(--bull)":sig==="SELL"?"var(--bear)":sig==="HOLD"?"var(--accent3)":"var(--muted)";
     const hasPos=!!portfolio.positions[sym];
-    return`<div class="pair-card ${sym===S.activePair?'selected':''}" onclick="selectPair('${sym}')">
+    return`<div class="pair-card ${sym===S.activePair?'selected':''}" data-sym="${sym}" data-action="selectPair">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
         <div>
           <div style="font-size:13px;font-weight:700;">${LABELS[sym]}${hasPos?` <span style="font-size:9px;color:var(--accent3);border:1px solid var(--accent3);padding:1px 5px;border-radius:2px;">OPEN</span>`:""}</div>
@@ -738,8 +733,8 @@ function renderDetail(){
         <div style="margin-top:14px;">
           <div style="font-size:9px;color:var(--accent3);letter-spacing:1px;margin-bottom:8px;">📄 Paper Trade — enter qty in popup</div>
           <div style="display:flex;gap:8px;">
-            <button class="m-buy" onclick="openModal('${sym}')">▲ BUY</button>
-            <button class="m-sell" onclick="openModal('${sym}')">▼ SELL</button>
+            <button class="m-buy" data-sym="${sym}" data-action="openModal">▲ BUY</button>
+            <button class="m-sell" data-sym="${sym}" data-action="openModal">▼ SELL</button>
           </div>
           ${pos?`<button onclick="closePosition('${sym}')" style="width:100%;margin-top:8px;padding:8px;font-size:11px;cursor:pointer;border:1px solid var(--accent3);background:rgba(255,225,53,0.08);color:var(--accent3);border-radius:3px;font-family:'Rajdhani',sans-serif;font-weight:700;letter-spacing:1px;text-transform:uppercase;">⊗ CLOSE POSITION</button>`:""}
         </div>
@@ -1038,7 +1033,7 @@ function searchCoins(query){
   resultsEl.style.display="block";
   resultsEl.innerHTML=matches.map(sym=>{
     const price=S.tickers[sym]?.lastPrice||"—";
-    return`<div onclick="addToWatchlist('${sym}')" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;border-bottom:1px solid var(--border);font-size:12px;" onmouseover="this.style.background='rgba(0,255,224,0.05)'" onmouseout="this.style.background='transparent'">
+    return`<div data-sym="${sym}" data-action="addToWatchlist" style="padding:8px 12px;cursor:pointer;display:flex;justify-content:space-between;border-bottom:1px solid var(--border);font-size:12px;">
       <span style="font-weight:600;">${sym.replace("USDT","/USDT")}</span>
       <span class="mono" style="color:var(--muted);font-size:11px;">${price!=="—"?"$"+parseFloat(price).toLocaleString(undefined,{maximumFractionDigits:4}):price}</span>
     </div>`;
@@ -1130,6 +1125,82 @@ function computeAI(candles){
   // BUY needs score>=4, SELL needs score<=-4 | confidence>45% for BUY, >40% SELL
   return{signal:score>=4?"BUY":score<=-4?"SELL":"HOLD",score:score.toFixed(2),confidence:conf.toFixed(1),breakdown:bd,patterns,rsi:rv,macdHist:hv,ema9:e9v,ema20:e20v,ema50:e50v,slPct:1.5,tpPct:2.5};
 }
+
+
+// ── Global Event Delegation (handles all dynamic data-action elements) ────
+document.addEventListener("click", function(e){
+  const el = e.target.closest("[data-action]");
+  if(!el) return;
+  const action = el.dataset.action;
+  const sym    = el.dataset.sym;
+  const name   = el.dataset.name;
+  const qty    = el.dataset.qty;
+
+  if(action==="selectPair"   && sym)  { e.stopPropagation(); selectPair(sym); }
+  if(action==="closePosition"&& sym)  { e.stopPropagation(); closePosition(sym); }
+  if(action==="openModal"    && sym)  { e.stopPropagation(); openModal(sym); }
+  if(action==="addToWatchlist"&& sym) { e.stopPropagation(); addToWatchlist(sym); }
+  if(action==="loginAs"      && name) { e.stopPropagation(); loginAs(name); }
+  if(action==="deleteUser"   && name) { e.stopPropagation(); e.preventDefault(); deleteUser(name); }
+  if(action==="setQty"       && qty)  { document.getElementById("m-qty").value=qty; }
+});
+
+// Quick qty buttons use data-qty not data-action — handle separately
+document.addEventListener("click", function(e){
+  if(e.target.classList.contains("q-btn") && e.target.dataset.qty){
+    document.getElementById("m-qty").value = e.target.dataset.qty;
+  }
+});
+
+// ── Event Listeners (replaces all inline onclick for GitHub Pages CSP) ────
+document.addEventListener("DOMContentLoaded", function(){
+  // Login
+  const loginBtn = document.getElementById("login-btn");
+  if(loginBtn) loginBtn.addEventListener("click", loginUser);
+
+  // Nav tabs
+  document.getElementById("tab-dashboard-btn")?.addEventListener("click", ()=>switchTab("dashboard"));
+  document.getElementById("tab-portfolio-btn")?.addEventListener("click", ()=>switchTab("portfolio"));
+  document.getElementById("tab-logs-btn")?.addEventListener("click", ()=>switchTab("logs"));
+
+  // Bot controls
+  document.getElementById("auto-toggle")?.addEventListener("click", toggleAuto);
+  document.getElementById("start-btn")?.addEventListener("click", toggleBot);
+
+  // Modal
+  document.getElementById("btn-market-click")?.addEventListener("click", ()=>setOrderType("MARKET"));
+  document.getElementById("btn-limit-click")?.addEventListener("click", ()=>setOrderType("LIMIT"));
+  document.getElementById("modal-buy-btn")?.addEventListener("click", ()=>doTrade("BUY"));
+  document.getElementById("modal-sell-btn")?.addEventListener("click", ()=>doTrade("SELL"));
+  document.getElementById("modal-cancel-btn")?.addEventListener("click", closeModal);
+  document.getElementById("overlay")?.addEventListener("click", function(e){if(e.target===this)closeModal();});
+
+  // Interval select
+  document.getElementById("interval-select")?.addEventListener("change", onIntervalChange);
+
+  // Coin search
+  const cs = document.getElementById("coin-search");
+  if(cs){
+    cs.addEventListener("input", ()=>searchCoins(cs.value));
+    cs.addEventListener("focus", ()=>cs.style.borderColor="var(--accent)");
+    cs.addEventListener("blur", ()=>{
+      setTimeout(()=>{const d=document.getElementById("coin-dropdown");if(d)d.style.display="none";},200);
+      cs.style.borderColor="var(--border)";
+    });
+  }
+
+  // Portfolio
+  document.getElementById("reset-portfolio-btn")?.addEventListener("click", resetPortfolio);
+  document.getElementById("logout-btn")?.addEventListener("click", logoutUser);
+
+  // Logs
+  document.getElementById("clear-logs-btn")?.addEventListener("click", clearLogs);
+
+  // Login name Enter key
+  document.getElementById("login-name")?.addEventListener("keypress", function(e){
+    if(e.key==="Enter") loginUser();
+  });
+});
 </script>
 </body>
 </html>
