@@ -677,14 +677,29 @@ function showPage(id) {
 }
 
 async function apiCall(endpoint, method='GET', body=null, auth=true) {
-  const headers = {'Content-Type':'application/json'};
+  const headers = {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+  };
   if(auth && token) headers['Authorization'] = 'Bearer ' + token;
-  const opts = {method, headers};
+  const opts = {
+    method,
+    headers,
+    mode: 'cors',
+    credentials: 'omit',
+  };
   if(body) opts.body = JSON.stringify(body);
-  const res = await fetch(API + endpoint, opts);
-  const data = await res.json();
-  if(!res.ok) throw new Error(data.detail || 'Request failed');
-  return data;
+  try {
+    const res = await fetch(API + endpoint, opts);
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.detail || 'Request failed');
+    return data;
+  } catch(e) {
+    if(e.message === 'Failed to fetch') {
+      throw new Error('Cannot reach server. Please wait 30 seconds and try again (server may be waking up).');
+    }
+    throw e;
+  }
 }
 
 async function doLogin() {
