@@ -635,7 +635,7 @@
 // ═══════════════════════════════════════════════════════
 // CONFIG
 // ═══════════════════════════════════════════════════════
-const API = 'https://nexus-bot-v2.onrender.com/api';
+const API = 'https://nexus-bot-backend.onrender.com/api';
 const PLAN_PRICES = {
   basic: {inr: 999, usd: 12},
   pro:   {inr: 2499, usd: 30},
@@ -676,28 +676,33 @@ function showPage(id) {
   document.getElementById(id).classList.remove('hidden');
 }
 
-async function apiCall(endpoint, method='GET', body=null, auth=true) {
-  const headers = {
-    'Content-Type': 'application/json',
-    'Accept': 'application/json',
-  };
+async function apiCall(endpoint, method='GET', body=null, auth=true, attempt=1) {
+  const headers = {'Content-Type':'application/json', 'Accept':'application/json'};
   if(auth && token) headers['Authorization'] = 'Bearer ' + token;
-  const opts = {
-    method,
-    headers,
-    mode: 'cors',
-    credentials: 'omit',
-  };
+  const opts = {method, headers, mode:'cors', credentials:'omit'};
   if(body) opts.body = JSON.stringify(body);
+
+  // 60 second timeout to handle Render cold start
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  opts.signal = controller.signal;
+
   try {
     const res = await fetch(API + endpoint, opts);
+    clearTimeout(timeout);
     const data = await res.json();
     if(!res.ok) throw new Error(data.detail || 'Request failed');
     return data;
   } catch(e) {
-    if(e.message === 'Failed to fetch') {
-      throw new Error('Cannot reach server. Please wait 30 seconds and try again (server may be waking up).');
+    clearTimeout(timeout);
+    // Auto-retry once if server timed out (Render cold start)
+    if(attempt === 1 && (e.name === 'AbortError' || e.message === 'Failed to fetch')) {
+      console.log('Server waking up, retrying in 5 seconds...');
+      await new Promise(r => setTimeout(r, 5000));
+      return apiCall(endpoint, method, body, auth, 2);
     }
+    if(e.name === 'AbortError') throw new Error('Server is starting up. Please try again in 10 seconds.');
+    if(e.message === 'Failed to fetch') throw new Error('Cannot reach server. Please try again.');
     throw e;
   }
 }
@@ -724,6 +729,7 @@ async function doRegister() {
   const alertEl = document.getElementById('registerAlert');
   alertEl.innerHTML = '';
   if(!name||!email||!pass) return alertEl.innerHTML='<div class="alert alert-error">Please fill all fields</div>';
+  alertEl.innerHTML='<div class="alert alert-info">⏳ Creating account... please wait up to 60 seconds on first load.</div>';
   try {
     const data = await apiCall('/auth/register','POST',{email,password:pass,full_name:name},false);
     token = data.access_token;
