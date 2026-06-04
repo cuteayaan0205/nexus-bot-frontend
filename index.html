@@ -30,7 +30,7 @@
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; }
-
+ 
   /* ── Layout ── */
   .app { display: flex; min-height: 100vh; }
   .sidebar {
@@ -39,7 +39,7 @@
     position: fixed; top: 0; left: 0; z-index: 10;
   }
   .main { margin-left: 220px; flex: 1; padding: 32px; }
-
+ 
   /* ── Sidebar ── */
   .logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
   .logo-text { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
@@ -69,20 +69,20 @@
   .plan-basic { color: var(--accent2); }
   .plan-pro { color: var(--accent); }
   .plan-elite { color: var(--warn); }
-
+ 
   /* ── Pages ── */
   .page { display: none; }
   .page.active { display: block; }
-
+ 
   /* ── Page header ── */
   .page-header { margin-bottom: 28px; }
   .page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
   .page-subtitle { font-size: 14px; color: var(--text2); margin-top: 4px; }
-
+ 
   /* ── Cards ── */
   .card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
   .card2 { background: var(--card2); border: 1px solid var(--border); border-radius: var(--radius2); padding: 16px; }
-
+ 
   /* ── Stats grid ── */
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
   .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
@@ -92,7 +92,7 @@
   .stat-value.red { color: var(--danger); }
   .stat-value.blue { color: var(--accent2); }
   .stat-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
-
+ 
   /* ── Signal feed ── */
   .signals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
   .signal-row {
@@ -110,11 +110,11 @@
   .signal-pair { font-size: 14px; font-weight: 600; flex: 1; }
   .signal-conf { font-size: 12px; color: var(--text2); }
   .signal-time { font-size: 11px; color: var(--text3); font-family: var(--mono); }
-
+ 
   /* ── Confidence bar ── */
   .conf-bar { height: 3px; background: var(--bg3); border-radius: 2px; margin-top: 4px; }
   .conf-fill { height: 100%; border-radius: 2px; background: var(--accent); }
-
+ 
   /* ── Bot toggle ── */
   .bot-status-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between; }
   .bot-indicator { display: flex; align-items: center; gap: 12px; }
@@ -131,7 +131,7 @@
   .toggle-btn.on:hover { background: rgba(255,77,109,0.25); }
   .toggle-btn.off { background: rgba(0,212,170,0.15); color: var(--accent); border: 1px solid rgba(0,212,170,0.3); }
   .toggle-btn.off:hover { background: rgba(0,212,170,0.25); }
-
+ 
   /* ── Buttons ── */
   .btn { padding: 10px 20px; border-radius: var(--radius2); font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; }
   .btn-primary { background: var(--accent); color: #000; }
@@ -139,7 +139,7 @@
   .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2); }
   .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
   .btn-danger { background: rgba(255,77,109,0.15); color: var(--danger); border: 1px solid rgba(255,77,109,0.3); }
-
+ 
   /* ── Forms ── */
   .form-group { margin-bottom: 16px; }
   .form-label { display: block; font-size: 13px; color: var(--text2); margin-bottom: 6px; font-weight: 500; }
@@ -151,7 +151,7 @@
   .form-input:focus { border-color: var(--accent); }
   .form-input option { background: var(--bg3); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-
+ 
   /* ── Trade table ── */
   .trade-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .trade-table th { text-align: left; padding: 10px 12px; color: var(--text3); font-weight: 500; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
@@ -163,7 +163,7 @@
   .status-failed { background: rgba(255,77,109,0.1); color: var(--danger); }
   .status-pending { background: rgba(255,179,71,0.1); color: var(--warn); }
   .status-cancelled { background: rgba(255,255,255,0.05); color: var(--text3); }
-
+ 
   /* ── Exchange cards ── */
   .exchange-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 24px; }
   .exchange-card {
@@ -175,7 +175,7 @@
   .exchange-logo { font-size: 20px; margin-bottom: 6px; }
   .exchange-name { font-size: 13px; font-weight: 600; }
   .exchange-region { font-size: 11px; color: var(--text3); margin-top: 2px; }
-
+ 
   /* ── Pricing ── */
   .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
   .pricing-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; position: relative; }
@@ -190,7 +190,7 @@
   .price-features li::before { content: '✓'; color: var(--accent); font-weight: 700; font-size: 12px; }
   .price-features li.no::before { content: '×'; color: var(--text3); }
   .price-features li.no { color: var(--text3); }
-
+ 
   /* ── Auth pages ── */
   .auth-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--bg); }
   .auth-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 40px; width: 100%; max-width: 400px; }
@@ -209,13 +209,13 @@
   .google-btn:hover { border-color: var(--text2); }
   .auth-switch { text-align: center; margin-top: 20px; font-size: 13px; color: var(--text2); }
   .auth-switch a { color: var(--accent); cursor: pointer; text-decoration: none; }
-
+ 
   /* ── Alerts ── */
   .alert { padding: 12px 16px; border-radius: var(--radius2); font-size: 13px; margin-bottom: 16px; }
   .alert-success { background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.2); color: var(--success); }
   .alert-error { background: rgba(255,77,109,0.1); border: 1px solid rgba(255,77,109,0.2); color: var(--danger); }
   .alert-info { background: rgba(0,153,255,0.1); border: 1px solid rgba(0,153,255,0.2); color: var(--accent2); }
-
+ 
   /* ── Misc ── */
   .section-title { font-size: 16px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
   .mono { font-family: var(--mono); }
@@ -238,10 +238,10 @@
 </style>
 </head>
 <body>
-
+ 
 <!-- ═══════════════ AUTH WRAPPER ═══════════════ -->
 <div id="authWrapper">
-
+ 
 <!-- LOGIN PAGE -->
 <div class="auth-page" id="loginPage">
   <div class="auth-card">
@@ -269,7 +269,7 @@
     <div class="auth-switch">Don't have an account? <a onclick="showPage('registerPage')">Sign up free</a></div>
   </div>
 </div>
-
+ 
 <!-- REGISTER PAGE -->
 <div class="auth-page hidden" id="registerPage">
   <div class="auth-card">
@@ -301,12 +301,12 @@
     <div class="auth-switch">Already have an account? <a onclick="showPage('loginPage')">Sign in</a></div>
   </div>
 </div>
-
+ 
 </div><!-- /authWrapper -->
-
+ 
 <!-- ═══════════════ MAIN APP ═══════════════ -->
 <div class="app hidden" id="mainApp">
-
+ 
   <!-- SIDEBAR -->
   <aside class="sidebar">
     <div class="logo">
@@ -347,10 +347,10 @@
       </div>
     </div>
   </aside>
-
+ 
   <!-- MAIN CONTENT -->
   <main class="main">
-
+ 
     <!-- DASHBOARD -->
     <div class="page active" id="tab-dashboard">
       <div class="page-header">
@@ -379,7 +379,7 @@
           <div class="stat-sub">USDT</div>
         </div>
       </div>
-
+ 
       <div class="signals-grid">
         <div class="card">
           <div class="section-title">Recent Signals</div>
@@ -403,7 +403,7 @@
         </div>
       </div>
     </div>
-
+ 
     <!-- LIVE SIGNALS -->
     <div class="page" id="tab-signals">
       <div class="page-header">
@@ -419,7 +419,7 @@
         <div id="signalsList"><div class="loading">Loading...</div></div>
       </div>
     </div>
-
+ 
     <!-- TRADE HISTORY -->
     <div class="page" id="tab-trades">
       <div class="page-header">
@@ -430,7 +430,7 @@
         <div id="tradesTableWrap"><div class="loading">Loading trades...</div></div>
       </div>
     </div>
-
+ 
     <!-- EXCHANGE SETUP -->
     <div class="page" id="tab-exchange">
       <div class="page-header">
@@ -479,7 +479,7 @@
         <div id="connectedExchangesList"><div class="loading">Loading...</div></div>
       </div>
     </div>
-
+ 
     <!-- BOT SETTINGS -->
     <div class="page" id="tab-botsettings">
       <div class="page-header">
@@ -521,7 +521,7 @@
         <div id="planFeaturesWrap"></div>
       </div>
     </div>
-
+ 
     <!-- PRICING -->
     <div class="page" id="tab-pricing">
       <div class="page-header">
@@ -601,10 +601,10 @@
         </div>
       </div>
     </div>
-
+ 
   </main>
 </div><!-- /mainApp -->
-
+ 
 <!-- PAYMENT MODAL -->
 <div id="paymentModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;align-items:center;justify-content:center;">
   <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:32px;width:480px;max-width:95vw">
@@ -630,7 +630,7 @@
     <div style="font-size:12px;color:var(--text3);text-align:center">🔒 Secure payment. Cancel anytime.</div>
   </div>
 </div>
-
+ 
 <script>
 // ═══════════════════════════════════════════════════════
 // CONFIG
@@ -647,12 +647,12 @@ const PLAN_PAIRS = {
   pro:   ['BTC/USDT','ETH/USDT','BNB/USDT','SOL/USDT','XRP/USDT'],
   elite: ['BTC/USDT','ETH/USDT','BNB/USDT','SOL/USDT','XRP/USDT','ADA/USDT','DOGE/USDT','MATIC/USDT']
 };
-
+ 
 let token = localStorage.getItem('nexus_token');
 let currentUser = null;
 let selectedExchange = null;
 let selectedPlan = null;
-
+ 
 const EXCHANGES = {
   binance:  {name:'Binance',  region:'Global',      emoji:'🟡'},
   kucoin:   {name:'KuCoin',   region:'Global',      emoji:'🟢'},
@@ -667,7 +667,7 @@ const EXCHANGES = {
   huobi:    {name:'HTX/Huobi',region:'Global',      emoji:'💎'},
   phemex:   {name:'Phemex',   region:'Global',      emoji:'⚡'},
 };
-
+ 
 // ═══════════════════════════════════════════════════════
 // AUTH HELPERS
 // ═══════════════════════════════════════════════════════
@@ -675,18 +675,18 @@ function showPage(id) {
   document.querySelectorAll('.auth-page').forEach(p => p.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
 }
-
+ 
 async function apiCall(endpoint, method='GET', body=null, auth=true, attempt=1) {
   const headers = {'Content-Type':'application/json', 'Accept':'application/json'};
   if(auth && token) headers['Authorization'] = 'Bearer ' + token;
   const opts = {method, headers, mode:'cors', credentials:'omit'};
   if(body) opts.body = JSON.stringify(body);
-
+ 
   // 60 second timeout to handle Render cold start
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 60000);
   opts.signal = controller.signal;
-
+ 
   try {
     const res = await fetch(API + endpoint, opts);
     clearTimeout(timeout);
@@ -706,7 +706,7 @@ async function apiCall(endpoint, method='GET', body=null, auth=true, attempt=1) 
     throw e;
   }
 }
-
+ 
 async function doLogin() {
   const email = document.getElementById('loginEmail').value;
   const pass  = document.getElementById('loginPassword').value;
@@ -721,7 +721,7 @@ async function doLogin() {
     enterApp();
   } catch(e) { alertEl.innerHTML = `<div class="alert alert-error">${e.message}</div>`; }
 }
-
+ 
 async function doRegister() {
   const name  = document.getElementById('regName').value;
   const email = document.getElementById('regEmail').value;
@@ -738,11 +738,11 @@ async function doRegister() {
     enterApp();
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
-
+ 
 async function doGoogleLogin() {
   alert('Google OAuth requires your Google Client ID to be configured.\nPlease set GOOGLE_CLIENT_ID in your environment and integrate the Google Sign-In SDK on your frontend.');
 }
-
+ 
 function doLogout() {
   localStorage.removeItem('nexus_token');
   token = null; currentUser = null;
@@ -750,7 +750,7 @@ function doLogout() {
   document.getElementById('authWrapper').classList.remove('hidden');
   showPage('loginPage');
 }
-
+ 
 function enterApp() {
   document.getElementById('authWrapper').classList.add('hidden');
   document.getElementById('mainApp').classList.remove('hidden');
@@ -760,7 +760,7 @@ function enterApp() {
   loadTrades();
   renderPlanFeatures();
 }
-
+ 
 function updateSidebar() {
   if(!currentUser) return;
   const initials = (currentUser.full_name||'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
@@ -770,7 +770,7 @@ function updateSidebar() {
   planEl.textContent = (currentUser.plan||'free').charAt(0).toUpperCase() + (currentUser.plan||'free').slice(1);
   planEl.className = 'plan-badge plan-' + (currentUser.plan||'free');
 }
-
+ 
 // ═══════════════════════════════════════════════════════
 // NAV
 // ═══════════════════════════════════════════════════════
@@ -785,7 +785,7 @@ function switchTab(id, el) {
   if(id==='exchange')  loadConnectedExchanges();
   if(id==='botsettings') loadBotSettings();
 }
-
+ 
 // ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
@@ -802,7 +802,7 @@ async function loadDashboard() {
     const pnlEl = document.getElementById('stat-pnl');
     pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2);
     pnlEl.className = 'stat-value ' + (pnl >= 0 ? 'green' : 'red');
-
+ 
     // Recent signals
     const list = document.getElementById('recentSignalsList');
     if(!data.recent_signals.length) { list.innerHTML = '<div class="loading">No signals yet</div>'; return; }
@@ -818,7 +818,7 @@ async function loadDashboard() {
           <div class="signal-time">${new Date(s.created_at).toLocaleTimeString()}</div>
         </div>
       </div>`).join('');
-
+ 
     // Bot status widget
     const dotEl = document.getElementById('dashPulseDot');
     const statusEl = document.getElementById('dashBotStatus');
@@ -833,7 +833,7 @@ async function loadDashboard() {
     document.getElementById('dashPairs').textContent = pairs.join(' · ');
   } catch(e) { console.error(e); }
 }
-
+ 
 // ═══════════════════════════════════════════════════════
 // SIGNALS
 // ═══════════════════════════════════════════════════════
@@ -862,9 +862,9 @@ async function loadSignals() {
       </tr>`).join('') + '</tbody></table>';
   } catch(e) { el.innerHTML=`<div class="loading" style="color:var(--danger)">${e.message}</div>`; }
 }
-
+ 
 function refreshSignals() { loadSignals(); }
-
+ 
 // ═══════════════════════════════════════════════════════
 // TRADES
 // ═══════════════════════════════════════════════════════
@@ -888,7 +888,7 @@ async function loadTrades() {
       </tr>`).join('') + '</tbody></table>';
   } catch(e) { wrap.innerHTML=`<div class="loading" style="color:var(--danger)">${e.message}</div>`; }
 }
-
+ 
 // ═══════════════════════════════════════════════════════
 // EXCHANGE
 // ═══════════════════════════════════════════════════════
@@ -901,7 +901,7 @@ function renderExchangeGrid() {
       <div class="exchange-region">${ex.region}</div>
     </div>`).join('');
 }
-
+ 
 function selectExchange(id) {
   selectedExchange = id;
   document.querySelectorAll('.exchange-card').forEach(c=>c.classList.remove('selected'));
@@ -910,7 +910,7 @@ function selectExchange(id) {
   document.getElementById('passphraseWrap').style.display = id==='kucoin' ? 'block' : 'none';
   document.getElementById('exchLabel').placeholder = `My ${EXCHANGES[id].name} Account`;
 }
-
+ 
 async function saveExchange() {
   const alertEl = document.getElementById('exchangeAlertDiv');
   if(!selectedExchange) return alertEl.innerHTML='<div class="alert alert-error">Select an exchange first</div>';
@@ -932,11 +932,11 @@ async function saveExchange() {
     loadConnectedExchanges();
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
-
+ 
 async function testExchange() {
   alert('Save the exchange first, then use the Test button in the Connected Exchanges section.');
 }
-
+ 
 async function loadConnectedExchanges() {
   const el = document.getElementById('connectedExchangesList');
   try {
@@ -954,7 +954,7 @@ async function loadConnectedExchanges() {
       </div>`).join('');
   } catch(e) { el.innerHTML=`<div class="loading" style="color:var(--danger)">${e.message}</div>`; }
 }
-
+ 
 async function testConfig(id) {
   const alertEl = document.getElementById('exchangeAlertDiv');
   try {
@@ -965,13 +965,13 @@ async function testConfig(id) {
     loadConnectedExchanges();
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
-
+ 
 async function deleteConfig(id) {
   if(!confirm('Remove this exchange?')) return;
   try { await apiCall(`/exchanges/${id}`,'DELETE'); loadConnectedExchanges(); }
   catch(e) { alert(e.message); }
 }
-
+ 
 // ═══════════════════════════════════════════════════════
 // BOT SETTINGS
 // ═══════════════════════════════════════════════════════
@@ -991,7 +991,7 @@ async function loadBotSettings() {
     subEl.textContent='Enable to start auto-trading'; btnEl.textContent='Enable Bot'; btnEl.className='toggle-btn off';
   }
 }
-
+ 
 async function toggleBot() {
   const alertEl = document.getElementById('botSettingsAlert');
   if(currentUser.plan === 'free') {
@@ -1009,7 +1009,7 @@ async function toggleBot() {
     alertEl.innerHTML = `<div class="alert alert-success">✅ Bot ${currentUser.bot_enabled?'ENABLED — Running every 5 minutes!':'disabled'}</div>`;
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
-
+ 
 async function saveBotSettings() {
   const alertEl = document.getElementById('botSettingsAlert');
   const amount = parseFloat(document.getElementById('tradeAmount').value);
@@ -1024,7 +1024,7 @@ async function saveBotSettings() {
     alertEl.innerHTML='<div class="alert alert-success">✅ Settings saved! Bot is now ' + (currentUser.bot_enabled ? 'ACTIVE' : 'inactive') + '</div>';
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
-
+ 
 function renderPlanFeatures() {
   if(!currentUser) return;
   const plan = currentUser.plan||'free';
@@ -1046,7 +1046,7 @@ function renderPlanFeatures() {
     </div>
     ${plan==='free'||plan==='basic'?'<div class="alert alert-info" style="margin-top:16px">💡 <strong>Upgrade to Pro</strong> to unlock auto trade execution and all 5 pairs.</div>':''}`;
 }
-
+ 
 // ═══════════════════════════════════════════════════════
 // PAYMENTS
 // ═══════════════════════════════════════════════════════
@@ -1059,9 +1059,9 @@ function startPayment(plan) {
   document.getElementById('modalAlert').innerHTML = '';
   document.getElementById('paymentModal').style.display = 'flex';
 }
-
+ 
 function closeModal() { document.getElementById('paymentModal').style.display='none'; }
-
+ 
 async function payWith(gateway) {
   const alertEl = document.getElementById('modalAlert');
   alertEl.innerHTML = `<div class="alert alert-info">Processing ${gateway} payment...</div>`;
@@ -1093,7 +1093,7 @@ async function payWith(gateway) {
     }
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
-
+ 
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
@@ -1112,3 +1112,4 @@ init();
 </script>
 </body>
 </html>
+ 
