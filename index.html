@@ -791,6 +791,9 @@ function switchTab(id, el) {
 // ═══════════════════════════════════════════════════════
 async function loadDashboard() {
   try {
+    // Always refresh currentUser when loading dashboard
+    currentUser = await apiCall('/auth/me');
+    updateSidebar();
     const data = await apiCall('/dashboard/summary');
     document.getElementById('stat-signals').textContent = data.total_signals;
     document.getElementById('stat-trades').textContent  = data.executed_trades;
@@ -997,10 +1000,13 @@ async function toggleBot() {
   }
   try {
     const enabled = !currentUser.bot_enabled;
+    alertEl.innerHTML = '<div class="alert alert-info">⏳ Updating bot status...</div>';
     await apiCall('/bot/settings','POST',{bot_enabled:enabled, trade_amount_usdt: currentUser.trade_amount_usdt||10});
-    currentUser.bot_enabled = enabled;
+    // Refresh from server
+    currentUser = await apiCall('/auth/me');
+    updateSidebar();
     loadBotSettings();
-    alertEl.innerHTML = `<div class="alert alert-success">Bot ${enabled?'enabled':'disabled'} successfully</div>`;
+    alertEl.innerHTML = `<div class="alert alert-success">✅ Bot ${currentUser.bot_enabled?'ENABLED — Running every 5 minutes!':'disabled'}</div>`;
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
 
@@ -1011,7 +1017,11 @@ async function saveBotSettings() {
   try {
     await apiCall('/bot/settings','POST',{bot_enabled:currentUser.bot_enabled||false, trade_amount_usdt:amount});
     currentUser.trade_amount_usdt = amount;
-    alertEl.innerHTML='<div class="alert alert-success">Settings saved!</div>';
+    // Refresh user from server to sync bot_enabled status
+    currentUser = await apiCall('/auth/me');
+    updateSidebar();
+    loadBotSettings();
+    alertEl.innerHTML='<div class="alert alert-success">✅ Settings saved! Bot is now ' + (currentUser.bot_enabled ? 'ACTIVE' : 'inactive') + '</div>';
   } catch(e) { alertEl.innerHTML=`<div class="alert alert-error">${e.message}</div>`; }
 }
 
