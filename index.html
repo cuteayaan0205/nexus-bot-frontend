@@ -844,17 +844,29 @@ async function loadSignals() {
     const res = await apiCall('/signals/live');
     const trades = res.signals || [];
     if(!trades.length) { el.innerHTML='<div class="loading">No signals yet — bot is evaluating markets. Check back in 30 seconds.</div>'; return; }
-    el.innerHTML = `<table class="trade-table">
-      <thead><tr><th>Pair</th><th>Signal</th><th>Confidence</th><th>Entry Price</th><th>Status</th><th>Time</th></tr></thead>
-      <tbody>` + trades.slice(0,20).map(t=>`
-      <tr>
+    // Separate buy/sell from hold for manual trading
+    const actionable = trades.filter(t => t.signal === 'buy' || t.signal === 'sell');
+    const holds = trades.filter(t => t.signal === 'hold');
+    const displayTrades = [...actionable, ...holds].slice(0, 20);
+
+    el.innerHTML = (actionable.length > 0 ? `
+      <div style="background:rgba(0,212,170,0.07);border:1px solid rgba(0,212,170,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px">
+        <div style="font-size:13px;font-weight:600;color:var(--accent)">⚡ ${actionable.length} Actionable Signal${actionable.length>1?'s':''} — Manual traders: act on BUY/SELL signals below</div>
+      </div>` : '') +
+    `<table class="trade-table">
+      <thead><tr><th>Pair</th><th>Signal</th><th>Confidence</th><th>Price</th><th>RSI</th><th>BB Position</th><th>Time</th></tr></thead>
+      <tbody>` + displayTrades.map(t => {
+        const sig = (t.signal||'hold').toLowerCase();
+        const rowStyle = sig==='buy' ? 'background:rgba(0,212,170,0.04)' : sig==='sell' ? 'background:rgba(255,77,109,0.04)' : '';
+        return `<tr style="${rowStyle}">
         <td><strong>${t.symbol}</strong></td>
-        <td><span class="signal-badge badge-${t.signal}">${t.signal.toUpperCase()}</span></td>
-        <td><div style="display:flex;align-items:center;gap:8px"><div class="conf-bar" style="width:60px"><div class="conf-fill" style="width:${t.confidence||0}%"></div></div><span style="font-size:12px">${t.confidence||0}%</span></div></td>
+        <td><span class="signal-badge badge-${sig}" style="font-size:13px;padding:4px 10px">${sig.toUpperCase()}</span></td>
+        <td><div style="display:flex;align-items:center;gap:8px"><div class="conf-bar" style="width:60px"><div class="conf-fill" style="width:${t.confidence||0}%;background:${sig==='buy'?'var(--success)':sig==='sell'?'var(--danger)':'var(--warn)'}"></div></div><span style="font-size:12px">${t.confidence||0}%</span></div></td>
         <td class="mono" style="font-size:13px">$${Number(t.entry_price||0).toFixed(2)}</td>
-        <td><span class="status-badge status-${t.status}">${t.status}</span></td>
-        <td style="font-size:12px;color:var(--text3)">${new Date(t.created_at).toLocaleString()}</td>
-      </tr>`).join('') + '</tbody></table>';
+        <td class="mono" style="font-size:12px;color:${(t.rsi||50)<35?'var(--success)':(t.rsi||50)>65?'var(--danger)':'var(--text2)'}">${t.rsi ? Number(t.rsi).toFixed(1) : '—'}</td>
+        <td style="font-size:12px;color:var(--text2)">${t.bb_position||'—'}</td>
+        <td style="font-size:11px;color:var(--text3)">${new Date(t.created_at).toLocaleTimeString()}</td>
+      </tr>`;}).join('') + '</tbody></table>';
   } catch(e) { el.innerHTML=`<div class="loading" style="color:var(--danger)">${e.message}</div>`; }
 }
 
