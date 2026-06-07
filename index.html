@@ -424,6 +424,62 @@
         <div class="page-title">Live Signals</div>
         <div class="page-subtitle">Real-time AI-generated trading signals from your exchange</div>
       </div>
+
+      <!-- MANUAL TRADE PANEL -->
+      <div class="card mb-6" style="border-color:rgba(0,212,170,0.3)">
+        <div class="section-title">⚡ Manual Trade — Paper Trading</div>
+        <div id="manualTradeAlert"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:12px;align-items:flex-end">
+          <div>
+            <label class="form-label">Crypto Pair</label>
+            <select class="form-input" id="manualPair">
+              <option value="BTC/USDT">BTC/USDT</option>
+              <option value="ETH/USDT">ETH/USDT</option>
+              <option value="BNB/USDT">BNB/USDT</option>
+              <option value="SOL/USDT">SOL/USDT</option>
+              <option value="XRP/USDT">XRP/USDT</option>
+              <option value="ADA/USDT">ADA/USDT</option>
+              <option value="DOGE/USDT">DOGE/USDT</option>
+              <option value="MATIC/USDT">MATIC/USDT</option>
+              <option value="AVAX/USDT">AVAX/USDT</option>
+              <option value="DOT/USDT">DOT/USDT</option>
+              <option value="LINK/USDT">LINK/USDT</option>
+              <option value="LTC/USDT">LTC/USDT</option>
+              <option value="TRX/USDT">TRX/USDT</option>
+              <option value="SHIB/USDT">SHIB/USDT</option>
+              <option value="UNI/USDT">UNI/USDT</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Amount (USDT)</label>
+            <input class="form-input" type="number" id="manualAmount" value="10" min="1" step="1" placeholder="10">
+          </div>
+          <div>
+            <label class="form-label">Live Price</label>
+            <div class="form-input" id="manualLivePrice" style="font-family:var(--mono);color:var(--accent);cursor:pointer" onclick="fetchManualPrice()">Click to fetch</div>
+          </div>
+          <button class="btn" style="background:rgba(0,212,170,0.15);color:var(--success);border:1px solid rgba(0,212,170,0.4);padding:10px 20px;font-size:14px;font-weight:700;height:42px" onclick="executeTrade('buy')">
+            ▲ BUY
+          </button>
+          <button class="btn" style="background:rgba(255,77,109,0.15);color:var(--danger);border:1px solid rgba(255,77,109,0.4);padding:10px 20px;font-size:14px;font-weight:700;height:42px" onclick="executeTrade('sell')">
+            ▼ SELL
+          </button>
+        </div>
+        <div style="font-size:12px;color:var(--text3);margin-top:10px">
+          📌 Paper trading mode — no real money. Trades are recorded for P&L tracking.
+        </div>
+      </div>
+
+      <!-- OPEN POSITIONS -->
+      <div class="card mb-6">
+        <div class="section-title">
+          Open Positions
+          <button class="btn btn-outline" style="font-size:12px;padding:6px 14px" onclick="loadOpenTrades()">↺ Refresh</button>
+        </div>
+        <div id="openTradesList"><div class="loading">Loading positions...</div></div>
+      </div>
+
+      <!-- SIGNALS TABLE -->
       <div id="planLockSignals" class="alert alert-info hidden">⚡ Upgrade to Basic or Pro plan to enable live signals on your exchange.</div>
       <div class="card mb-6">
         <div class="section-title">
@@ -794,7 +850,7 @@ function switchTab(id, el) {
   el.classList.add('active');
   document.getElementById('tab-'+id).classList.add('active');
   if(id==='dashboard') loadDashboard();
-  if(id==='signals')   loadSignals();
+  if(id==='signals')   { loadSignals(); loadOpenTrades(); fetchManualPrice(); }
   if(id==='trades')    loadTrades();
   if(id==='exchange')  loadConnectedExchanges();
   if(id==='botsettings') loadBotSettings();
@@ -1026,6 +1082,105 @@ async function loadSignals() {
 }
 
 function refreshSignals() { loadSignals(); }
+
+// ═══════════════════════════════════════════════════════
+// MANUAL TRADING
+// ═══════════════════════════════════════════════════════
+async function fetchManualPrice() {
+  const pair = document.getElementById('manualPair').value;
+  const el = document.getElementById('manualLivePrice');
+  el.textContent = 'Fetching...';
+  try {
+    const sym = pair.replace('/', '');
+    const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${sym}`);
+    const data = await res.json();
+    const price = parseFloat(data.price);
+    el.textContent = '$' + price.toLocaleString(undefined, {maximumFractionDigits: 4});
+    el.dataset.price = price;
+  } catch(e) {
+    el.textContent = 'Error fetching price';
+  }
+}
+
+// Auto-fetch price when pair changes
+document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('manualPair');
+  if (sel) sel.addEventListener('change', fetchManualPrice);
+});
+
+async function executeTrade(action) {
+  const alertEl = document.getElementById('manualTradeAlert');
+  const pair    = document.getElementById('manualPair').value;
+  const amount  = parseFloat(document.getElementById('manualAmount').value);
+
+  if (!amount || amount < 1) {
+    alertEl.innerHTML = '<div class="alert alert-error">Minimum amount is $1 USDT</div>';
+    return;
+  }
+
+  alertEl.innerHTML = `<div class="alert alert-info">⏳ Executing ${action.toUpperCase()} order for ${pair}...</div>`;
+
+  try {
+    const res = await apiCall('/trades/manual', 'POST', {
+      symbol: pair,
+      action: action,
+      amount_usdt: amount
+    });
+    const color = action === 'buy' ? 'alert-success' : 'alert-error';
+    alertEl.innerHTML = `<div class="alert ${color}">${res.message}<br>
+      <span style="font-size:12px;opacity:0.8">Qty: ${res.quantity.toFixed(6)} · Price: $${res.price.toLocaleString(undefined,{maximumFractionDigits:2})}</span>
+    </div>`;
+    // Refresh open positions and price
+    fetchManualPrice();
+    loadOpenTrades();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
+
+async function loadOpenTrades() {
+  const el = document.getElementById('openTradesList');
+  try {
+    const trades = await apiCall('/trades/open');
+    if (!trades.length) {
+      el.innerHTML = '<div class="loading">No open positions</div>';
+      return;
+    }
+    el.innerHTML = `<table class="trade-table">
+      <thead><tr><th>Pair</th><th>Side</th><th>Entry Price</th><th>Qty</th><th>Value</th><th>Opened</th><th>Action</th></tr></thead>
+      <tbody>` + trades.map(t => {
+        const sig = t.signal;
+        return `<tr>
+          <td><strong>${t.symbol}</strong></td>
+          <td><span class="signal-badge badge-${sig}">${sig.toUpperCase()}</span></td>
+          <td class="mono">$${Number(t.price).toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+          <td class="mono" style="font-size:12px">${Number(t.quantity).toFixed(6)}</td>
+          <td class="mono" style="font-size:12px">$${Number(t.total_usdt).toFixed(2)}</td>
+          <td style="font-size:11px;color:var(--text3)">${new Date(t.created_at).toLocaleTimeString()}</td>
+          <td><button class="btn btn-danger" style="font-size:11px;padding:4px 10px" onclick="closeTrade('${t.id}')">Close</button></td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+  } catch(e) {
+    el.innerHTML = `<div class="loading" style="color:var(--danger)">${e.message}</div>`;
+  }
+}
+
+async function closeTrade(id) {
+  const alertEl = document.getElementById('manualTradeAlert');
+  try {
+    alertEl.innerHTML = '<div class="alert alert-info">⏳ Closing position...</div>';
+    const res = await apiCall(`/trades/close/${id}`, 'POST');
+    const pnl = res.pnl_usdt;
+    alertEl.innerHTML = `<div class="alert ${pnl >= 0 ? 'alert-success' : 'alert-error'}">
+      ${res.message}<br>
+      <span style="font-size:12px;opacity:0.8">Exit: $${res.exit_price.toLocaleString(undefined,{maximumFractionDigits:2})} · Entry: $${res.entry_price.toLocaleString(undefined,{maximumFractionDigits:2})}</span>
+    </div>`;
+    loadOpenTrades();
+    loadTrades();
+  } catch(e) {
+    alertEl.innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+  }
+}
 
 // ═══════════════════════════════════════════════════════
 // TRADES
