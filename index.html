@@ -358,28 +358,33 @@
         <div class="page-subtitle">Real-time bot performance overview</div>
       </div>
       <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-label">Total Signals</div>
-          <div class="stat-value blue" id="stat-signals">—</div>
-          <div class="stat-sub">Last 30 days</div>
+        <div class="stat-card"><div class="stat-label">Total Signals</div><div class="stat-value blue" id="stat-signals">—</div><div class="stat-sub">Last 30 days</div></div>
+        <div class="stat-card"><div class="stat-label">Executed Trades</div><div class="stat-value" id="stat-trades">—</div><div class="stat-sub">Successful orders</div></div>
+        <div class="stat-card"><div class="stat-label">Win Rate</div><div class="stat-value green" id="stat-winrate">—</div><div class="stat-sub">Profitable trades</div></div>
+        <div class="stat-card"><div class="stat-label">Total P&L</div><div class="stat-value" id="stat-pnl">—</div><div class="stat-sub">USDT</div></div>
+      </div>
+
+      <!-- Top Gainers / Losers -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">
+        <div class="card">
+          <div class="section-title" style="color:var(--success)">🚀 Top Gainers (24h)</div>
+          <div id="topGainersList"><div class="loading">Loading...</div></div>
         </div>
-        <div class="stat-card">
-          <div class="stat-label">Executed Trades</div>
-          <div class="stat-value" id="stat-trades">—</div>
-          <div class="stat-sub">Successful orders</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Win Rate</div>
-          <div class="stat-value green" id="stat-winrate">—</div>
-          <div class="stat-sub">Profitable trades</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-label">Total P&L</div>
-          <div class="stat-value" id="stat-pnl">—</div>
-          <div class="stat-sub">USDT</div>
+        <div class="card">
+          <div class="section-title" style="color:var(--danger)">📉 Top Losers (24h)</div>
+          <div id="topLosersList"><div class="loading">Loading...</div></div>
         </div>
       </div>
 
+      <!-- Candlestick Charts -->
+      <div class="card mb-6">
+        <div class="section-title">Live Charts — 5 Pairs <span style="font-size:12px;color:var(--text3);font-weight:400">1h candles · Binance</span></div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:14px;min-height:160px" id="chartsGrid">
+          <div class="loading" style="grid-column:1/-1">Loading charts from Binance...</div>
+        </div>
+      </div>
+
+      <!-- Recent Signals + Bot Status -->
       <div class="signals-grid">
         <div class="card">
           <div class="section-title">Recent Signals</div>
@@ -401,6 +406,15 @@
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Full Market -->
+      <div class="card" style="margin-top:24px">
+        <div class="section-title">
+          Full Market — All USDT Pairs
+          <input id="marketSearch" class="form-input" style="width:200px;padding:6px 12px;font-size:13px" placeholder="Search coin..." oninput="filterMarket()">
+        </div>
+        <div id="marketTableWrap"><div class="loading">Loading market data...</div></div>
       </div>
     </div>
 
@@ -787,6 +801,145 @@ function switchTab(id, el) {
 }
 
 // ═══════════════════════════════════════════════════════
+// CHARTS + MARKET DATA
+// ═══════════════════════════════════════════════════════
+
+const CHART_PAIRS = ['BTCUSDT','ETHUSDT','BNBUSDT','SOLUSDT','XRPUSDT'];
+const CHART_LABELS = ['BTC/USDT','ETH/USDT','BNB/USDT','SOL/USDT','XRP/USDT'];
+let allMarketData = [];
+
+function drawMiniCandles(canvas, candles) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  const n = candles.length;
+  const highs = candles.map(c => c[2]);
+  const lows  = candles.map(c => c[3]);
+  const hi = Math.max(...highs), lo = Math.min(...lows);
+  const range = hi - lo || 1;
+  const pad = 4, bw = Math.floor((W - pad*2) / n) - 1;
+
+  candles.forEach((c, i) => {
+    const open = c[1], high = c[2], low = c[3], close = c[4];
+    const bull = close >= open;
+    const color = bull ? '#00d4aa' : '#ff4d6d';
+    const x = pad + i * (bw + 1);
+    const yHigh = pad + ((hi - high) / range) * (H - pad*2);
+    const yLow  = pad + ((hi - low)  / range) * (H - pad*2);
+    const yOpen = pad + ((hi - open) / range) * (H - pad*2);
+    const yClose= pad + ((hi - close)/ range) * (H - pad*2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x + bw/2, yHigh);
+    ctx.lineTo(x + bw/2, yLow);
+    ctx.stroke();
+    ctx.fillStyle = color;
+    const y = Math.min(yOpen, yClose);
+    const h = Math.max(Math.abs(yClose - yOpen), 1);
+    ctx.fillRect(x, y, bw, h);
+  });
+}
+
+async function loadCharts() {
+  const grid = document.getElementById('chartsGrid');
+  // Build chart containers first
+  grid.innerHTML = CHART_PAIRS.map((sym, i) => `
+    <div style="background:var(--bg3);border-radius:10px;padding:12px;border:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);letter-spacing:0.5px;margin-bottom:2px">${CHART_LABELS[i]}</div>
+      <div id="chart-price-${i}" style="font-size:15px;font-weight:700;font-family:var(--mono);color:var(--text)">—</div>
+      <div id="chart-chg-${i}" style="font-size:11px;margin-bottom:8px;font-weight:600">—</div>
+      <div style="position:relative;width:100%;height:70px;background:var(--bg2);border-radius:6px;overflow:hidden" id="chart-wrap-${i}">
+        <canvas id="chart-${i}" style="position:absolute;top:0;left:0;width:100%;height:100%"></canvas>
+      </div>
+    </div>`).join('');
+
+  // Load data for each pair
+  for (let i = 0; i < CHART_PAIRS.length; i++) {
+    try {
+      const sym = CHART_PAIRS[i];
+      const [klinesRes, tickerRes] = await Promise.all([
+        fetch(`https://api.binance.com/api/v3/klines?symbol=${sym}&interval=1h&limit=40`),
+        fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${sym}`)
+      ]);
+      const klines = await klinesRes.json();
+      const ticker = await tickerRes.json();
+      const price = parseFloat(ticker.lastPrice);
+      const chg   = parseFloat(ticker.priceChangePercent);
+      document.getElementById(`chart-price-${i}`).textContent = '$' + price.toLocaleString(undefined,{maximumFractionDigits:2});
+      const chgEl = document.getElementById(`chart-chg-${i}`);
+      chgEl.textContent = (chg >= 0 ? '▲ +' : '▼ ') + chg.toFixed(2) + '%';
+      chgEl.style.color = chg >= 0 ? 'var(--success)' : 'var(--danger)';
+      // Size canvas to actual pixel dimensions AFTER DOM renders
+      requestAnimationFrame(() => {
+        const wrap = document.getElementById(`chart-wrap-${i}`);
+        const canvas = document.getElementById(`chart-${i}`);
+        if (wrap && canvas) {
+          canvas.width  = wrap.offsetWidth  || 200;
+          canvas.height = wrap.offsetHeight || 70;
+          drawMiniCandles(canvas, klines);
+        }
+      });
+    } catch(e) { console.warn('Chart error', sym, e); }
+  }
+}
+
+async function loadGainersLosers() {
+  try {
+    const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+    const data = await res.json();
+    allMarketData = data.filter(t => t.symbol.endsWith('USDT') && parseFloat(t.quoteVolume) > 1000000);
+    const sorted = [...allMarketData].sort((a,b) => parseFloat(b.priceChangePercent) - parseFloat(a.priceChangePercent));
+    const gainers = sorted.slice(0, 5);
+    const losers  = sorted.slice(-5).reverse();
+
+    const renderRow = (t, color) => {
+      const chg = parseFloat(t.priceChangePercent);
+      const sym = t.symbol.replace('USDT','');
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600;font-size:13px">${sym}/USDT</div>
+        <div style="text-align:right">
+          <div style="font-size:13px;font-family:var(--mono)">$${parseFloat(t.lastPrice).toLocaleString(undefined,{maximumFractionDigits:4})}</div>
+          <div style="font-size:11px;color:${color}">${chg >= 0 ? '▲ +' : '▼ '}${chg.toFixed(2)}%</div>
+        </div>
+      </div>`;
+    };
+
+    document.getElementById('topGainersList').innerHTML = gainers.map(t => renderRow(t,'var(--success)')).join('');
+    document.getElementById('topLosersList').innerHTML  = losers.map(t  => renderRow(t,'var(--danger)')).join('');
+    renderMarketTable(allMarketData);
+  } catch(e) { console.warn('Gainers error', e); }
+}
+
+function renderMarketTable(data) {
+  const wrap = document.getElementById('marketTableWrap');
+  if (!data.length) { wrap.innerHTML = '<div class="loading">No data</div>'; return; }
+  const rows = data.slice(0, 200).map(t => {
+    const chg = parseFloat(t.priceChangePercent);
+    const sym = t.symbol.replace('USDT','');
+    const vol = (parseFloat(t.quoteVolume)/1e6).toFixed(1);
+    return `<tr>
+      <td><strong>${sym}</strong><span style="color:var(--text3);font-size:11px">/USDT</span></td>
+      <td class="mono">$${parseFloat(t.lastPrice).toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+      <td style="color:${chg>=0?'var(--success)':'var(--danger)'}">${chg>=0?'▲ +':'▼ '}${chg.toFixed(2)}%</td>
+      <td class="mono" style="font-size:12px;color:var(--text3)">$${vol}M</td>
+    </tr>`;
+  }).join('');
+  wrap.innerHTML = `<div style="max-height:400px;overflow-y:auto">
+    <table class="trade-table">
+      <thead><tr><th>Pair</th><th>Price</th><th>24h Change</th><th>Volume</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+}
+
+function filterMarket() {
+  const q = document.getElementById('marketSearch').value.toUpperCase();
+  const filtered = allMarketData.filter(t => t.symbol.includes(q));
+  renderMarketTable(filtered);
+}
+
+// ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
 async function loadDashboard() {
@@ -819,6 +972,10 @@ async function loadDashboard() {
         </div>
       </div>`).join('');
 
+    // Load charts + gainers/losers
+    loadCharts();
+    loadGainersLosers();
+
     // Bot status widget
     const dotEl = document.getElementById('dashPulseDot');
     const statusEl = document.getElementById('dashBotStatus');
@@ -844,11 +1001,9 @@ async function loadSignals() {
     const res = await apiCall('/signals/live');
     const trades = res.signals || [];
     if(!trades.length) { el.innerHTML='<div class="loading">No signals yet — bot is evaluating markets. Check back in 30 seconds.</div>'; return; }
-    // Separate buy/sell from hold for manual trading
     const actionable = trades.filter(t => t.signal === 'buy' || t.signal === 'sell');
     const holds = trades.filter(t => t.signal === 'hold');
     const displayTrades = [...actionable, ...holds].slice(0, 20);
-
     el.innerHTML = (actionable.length > 0 ? `
       <div style="background:rgba(0,212,170,0.07);border:1px solid rgba(0,212,170,0.2);border-radius:8px;padding:12px 16px;margin-bottom:16px">
         <div style="font-size:13px;font-weight:600;color:var(--accent)">⚡ ${actionable.length} Actionable Signal${actionable.length>1?'s':''} — Manual traders: act on BUY/SELL signals below</div>
@@ -1002,6 +1157,10 @@ async function loadBotSettings() {
 
 async function toggleBot() {
   const alertEl = document.getElementById('botSettingsAlert');
+  if(currentUser.plan === 'free') {
+    alertEl.innerHTML = '<div class="alert alert-error">⚠️ Upgrade to Basic or Pro plan to enable the bot</div>';
+    return;
+  }
   try {
     const enabled = !currentUser.bot_enabled;
     alertEl.innerHTML = '<div class="alert alert-info">⏳ Updating bot status...</div>';
